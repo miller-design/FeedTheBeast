@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlansPlanIdRouteImport } from './routes/plans/$planId'
+import { Route as PrivacyIndexRouteImport } from './routes/privacy/index'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const PlansPlanIdRoute = PlansPlanIdRouteImport.update({
   path: '/plans/$planId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyIndexRoute = PrivacyIndexRouteImport.update({
+  id: '/privacy/',
+  path: '/privacy/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecipesIndexRoute = RecipesIndexRouteImport.update({
   id: '/recipes/',
   path: '/recipes/',
@@ -32,30 +38,34 @@ const RecipesIndexRoute = RecipesIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/plans/$planId': typeof PlansPlanIdRoute
+  '/privacy/': typeof PrivacyIndexRoute
   '/recipes/': typeof RecipesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/plans/$planId': typeof PlansPlanIdRoute
+  '/privacy': typeof PrivacyIndexRoute
   '/recipes': typeof RecipesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/plans/$planId': typeof PlansPlanIdRoute
+  '/privacy/': typeof PrivacyIndexRoute
   '/recipes/': typeof RecipesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/plans/$planId' | '/recipes/'
+  fullPaths: '/' | '/plans/$planId' | '/privacy/' | '/recipes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/plans/$planId' | '/recipes'
-  id: '__root__' | '/' | '/plans/$planId' | '/recipes/'
+  to: '/' | '/plans/$planId' | '/privacy' | '/recipes'
+  id: '__root__' | '/' | '/plans/$planId' | '/privacy/' | '/recipes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlansPlanIdRoute: typeof PlansPlanIdRoute
+  PrivacyIndexRoute: typeof PrivacyIndexRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlansPlanIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy/': {
+      id: '/privacy/'
+      path: '/privacy'
+      fullPath: '/privacy/'
+      preLoaderRoute: typeof PrivacyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recipes/': {
       id: '/recipes/'
       path: '/recipes'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlansPlanIdRoute: PlansPlanIdRoute,
+  PrivacyIndexRoute: PrivacyIndexRoute,
   RecipesIndexRoute: RecipesIndexRoute,
 }
 export const routeTree = rootRouteImport

@@ -11,12 +11,12 @@
   composes: container flex from global;
   justify-content: space-between;
   align-items: center;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
 .logo {
-  font-size: var(--fs-base);
+  font-size: var(--fs-lg);
   font-weight: var(--fw-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;

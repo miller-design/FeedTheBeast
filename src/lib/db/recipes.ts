@@ -1,0 +1,145 @@
+import { createId } from '#/lib/meal-plan-factory'
+import { db } from '#/lib/db/index'
+import type { FoodEntry } from '#/types/meal-plan'
+import type {
+  CreateRecipeInput,
+  ImportedRecipeDraft,
+  Recipe,
+  RecipeIngredient,
+} from '#/types/recipe'
+
+/**
+ * Retrieves all recipes sorted by most recently updated.
+ *
+ * @returns Array of recipes
+ */
+export async function getAllRecipes(): Promise<Recipe[]> {
+  return db.recipes.orderBy('updatedAt').reverse().toArray()
+}
+
+/**
+ * Fetches a single recipe by ID.
+ *
+ * @param id - Recipe UUID
+ * @returns Recipe or undefined
+ */
+export async function getRecipeById(id: string): Promise<Recipe | undefined> {
+  return db.recipes.get(id)
+}
+
+/**
+ * Saves a new or updated recipe to IndexedDB.
+ *
+ * @param recipe - Complete recipe object
+ */
+export async function saveRecipe(recipe: Recipe): Promise<void> {
+  await db.recipes.put(recipe)
+}
+
+/**
+ * Deletes a recipe by ID.
+ *
+ * @param id - Recipe UUID
+ */
+export async function deleteRecipe(id: string): Promise<void> {
+  await db.recipes.delete(id)
+}
+
+/**
+ * Converts ingredient strings to structured ingredient objects.
+ *
+ * @param ingredients - Raw ingredient text lines
+ * @returns Structured ingredients with IDs
+ */
+function mapIngredients(ingredients: string[]): RecipeIngredient[] {
+  return ingredients
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .map((text) => ({ id: createId(), text }))
+}
+
+/**
+ * Creates a Recipe from manual form input.
+ *
+ * @param input - Form values from recipe builder
+ * @returns Complete Recipe object
+ *
+ * @example
+ * createRecipeFromInput({ name: 'Mac and Cheese', servings: 4, ... })
+ */
+export function createRecipeFromInput(input: CreateRecipeInput): Recipe {
+  const now = new Date().toISOString()
+
+  return {
+    id: createId(),
+    name: input.name.trim(),
+    description: input.description?.trim(),
+    servings: input.servings,
+    ingredients: mapIngredients(input.ingredients),
+    instructions: input.instructions.map((s) => s.trim()).filter(Boolean),
+    nutrition: input.nutrition,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+/**
+ * Creates a Recipe from an imported URL draft.
+ *
+ * @param draft - Parsed import data from schema.org
+ * @returns Complete Recipe object ready to save
+ *
+ * @example
+ * createRecipeFromImport(importedDraft)
+ */
+export function createRecipeFromImport(draft: ImportedRecipeDraft): Recipe {
+  const now = new Date().toISOString()
+
+  return {
+    id: createId(),
+    name: draft.name,
+    description: draft.description,
+    imageUrl: draft.imageUrl,
+    sourceUrl: draft.sourceUrl,
+    sourceSite: draft.sourceSite,
+    servings: draft.servings,
+    prepTimeMinutes: draft.prepTimeMinutes,
+    cookTimeMinutes: draft.cookTimeMinutes,
+    ingredients: mapIngredients(draft.ingredients),
+    instructions: draft.instructions,
+    nutrition: draft.nutrition,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+/**
+ * Converts a recipe to a food entry for adding to a meal slot.
+ *
+ * @param recipe - Source recipe from library
+ * @param servings - Number of servings to add (default 1)
+ * @returns FoodEntry representing the recipe
+ *
+ * @example
+ * recipeToFoodEntry(macAndCheese, 1)
+ */
+export function recipeToFoodEntry(
+  recipe: Recipe,
+  servings = 1,
+): FoodEntry {
+  const factor = servings / Math.max(recipe.servings, 1)
+
+  return {
+    id: createId(),
+    name: recipe.name,
+    calories: Math.round(recipe.nutrition.calories * factor),
+    protein: Math.round(recipe.nutrition.protein * factor * 10) / 10,
+    carbs: Math.round(recipe.nutrition.carbs * factor * 10) / 10,
+    fat: Math.round(recipe.nutrition.fat * factor * 10) / 10,
+    quantity: servings,
+    unit: 'serving',
+    source: 'recipe',
+    recipeId: recipe.id,
+    recipeServings: servings,
+  }
+}

@@ -1,0 +1,97 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: var(--sp-2);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-bg-subtle);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.dayInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dayLabel {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.date {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.targetField {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-secondary);
+
+  & input {
+    width: 5rem;
+    padding: 0.4rem 0.5rem;
+    font-family: ui-monospace, 'SF Mono', monospace;
+    text-align: right;
+  }
+}
+
+.meals {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+
+  @media (--bp-sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (--bp-lg) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.targetValue {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-secondary);
+
+  & strong {
+    font-family: ui-monospace, 'SF Mono', monospace;
+    font-weight: var(--fw-semibold);
+    color: var(--color-text);
+  }
+}
+
+@media print {
+  .root {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+    background: white;
+  }
+
+  .targetField input {
+    border: none;
+    padding: 0;
+    width: auto;
+  }
+}

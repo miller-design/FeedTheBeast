@@ -1,0 +1,61 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.compact {
+  gap: 0.25rem;
+
+  & .header {
+    font-size: var(--fs-sm);
+  }
+
+  & .remaining {
+    font-size: var(--fs-xs);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-size: var(--fs-base);
+}
+
+.consumed {
+  font-weight: var(--fw-semibold);
+  color: var(--color-black);
+}
+
+.target {
+  color: var(--color-gray-400);
+}
+
+.track {
+  height: 0.5rem;
+  background: var(--color-gray-100);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+
+  &.over {
+    background: var(--color-warning);
+  }
+}
+
+.remaining {
+  font-size: var(--fs-sm);
+  color: var(--color-gray-400);
+}
+
+.overText {
+  color: var(--color-warning);
+  font-weight: var(--fw-medium);
+}

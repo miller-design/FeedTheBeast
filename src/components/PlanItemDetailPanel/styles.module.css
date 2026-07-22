@@ -1,0 +1,23 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.missingRecipe {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-bg-inset);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--lh-relaxed);
+}

@@ -1,0 +1,42 @@
+.openBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.name {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+}
+
+.meta {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+}
+
+.source {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+.viewHint {
+  margin-top: 0.15rem;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+}
+
+.openBtn:hover .viewHint {
+  color: var(--color-text);
+}

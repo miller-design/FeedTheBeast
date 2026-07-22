@@ -1,0 +1,37 @@
+.preview {
+  & h3 {
+    margin: 0 0 0.25rem;
+    font-size: var(--fs-base);
+    font-weight: var(--fw-semibold);
+  }
+}
+
+.source {
+  margin: 0 0 0.5rem;
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+
+.details {
+  font-size: var(--fs-sm);
+
+  & summary {
+    cursor: pointer;
+    font-weight: var(--fw-medium);
+    color: var(--color-text-secondary);
+  }
+
+  & ul {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+  }
+}

@@ -1,0 +1,27 @@
+.durationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.durationBtn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-btn-ghost-hover-bg);
+  }
+}
+
+.durationActive {
+  border-color: var(--color-input-border-focus);
+  background: var(--color-bg-inset);
+  font-weight: var(--fw-semibold);
+}

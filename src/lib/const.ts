@@ -4,7 +4,7 @@ type FooterLink = {
   target?: string
 }
 
-export const SITE_NAME = 'FeadTheBeast'
+export const SITE_NAME = 'FeedTheBeast'
 export const FOOTER_COPYRIGHT = `${SITE_NAME}. All rights reserved.`
 
 export const FOOTER_LINKS: FooterLink[] = []

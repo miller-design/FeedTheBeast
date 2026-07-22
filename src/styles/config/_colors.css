@@ -1,5 +1,93 @@
-:root {
-  --color-white: #fff;
-  --color-black: #000;
-  --color-gray-100: #dedede;
+/* Light theme */
+:root,
+[data-theme='light'] {
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f3f3f3;
+  --color-bg-elevated: #ffffff;
+  --color-bg-inset: #e8e8e8;
+  --color-text: #111111;
+  --color-text-secondary: #3d3d3d;
+  --color-text-muted: #5c5c5c;
+  --color-border: #c4c4c4;
+  --color-border-strong: #9a9a9a;
+  --color-accent: #111111;
+  --color-accent-fg: #ffffff;
+  --color-target: #b45309;
+  --color-target-muted: rgb(180 83 9 / 14%);
+  --color-success: #15803d;
+  --color-danger: #b91c1c;
+  --color-overlay: rgb(0 0 0 / 50%);
+  --color-drop-highlight: rgb(0 0 0 / 5%);
+  --color-drop-active: rgb(0 0 0 / 10%);
+  --color-input-bg: #ffffff;
+  --color-input-border: #9a9a9a;
+  --color-input-border-hover: #767676;
+  --color-input-border-focus: #111111;
+  --color-input-placeholder: #767676;
+  --color-focus-ring: rgb(17 17 17 / 18%);
+  --color-btn-ghost-border: #767676;
+  --color-btn-ghost-text: #3d3d3d;
+  --color-btn-ghost-hover-bg: #ebebeb;
+  --color-nav-active: var(--color-accent);
+
+  /* Legacy aliases */
+  --color-white: var(--color-bg);
+  --color-black: var(--color-text);
+  --color-gray-50: var(--color-bg-subtle);
+  --color-gray-100: var(--color-bg-inset);
+  --color-gray-200: var(--color-border-strong);
+  --color-gray-300: var(--color-text-muted);
+  --color-gray-400: var(--color-text-secondary);
+  --color-accent-light: var(--color-bg-inset);
+  --color-accent-dark: var(--color-text);
+  --color-warning: var(--color-target);
+  --color-warning-light: var(--color-target-muted);
+  --color-info: var(--color-text-secondary);
+  --color-surface: var(--color-bg-subtle);
+}
+
+/* Dark theme */
+[data-theme='dark'] {
+  --color-bg: #0a0a0a;
+  --color-bg-subtle: #111111;
+  --color-bg-elevated: #171717;
+  --color-bg-inset: #1f1f1f;
+  --color-text: #fafafa;
+  --color-text-secondary: #a3a3a3;
+  --color-text-muted: #737373;
+  --color-border: #333333;
+  --color-border-strong: #525252;
+  --color-accent: #fafafa;
+  --color-accent-fg: #0a0a0a;
+  --color-target: #f59e0b;
+  --color-target-muted: rgb(245 158 11 / 12%);
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-overlay: rgb(0 0 0 / 70%);
+  --color-drop-highlight: rgb(255 255 255 / 4%);
+  --color-drop-active: rgb(255 255 255 / 8%);
+  --color-input-bg: #141414;
+  --color-input-border: #525252;
+  --color-input-border-hover: #737373;
+  --color-input-border-focus: #fafafa;
+  --color-input-placeholder: #737373;
+  --color-focus-ring: rgb(250 250 250 / 15%);
+  --color-btn-ghost-border: #525252;
+  --color-btn-ghost-text: #a3a3a3;
+  --color-btn-ghost-hover-bg: #1f1f1f;
+  --color-nav-active: var(--color-accent);
+
+  --color-white: var(--color-bg);
+  --color-black: var(--color-text);
+  --color-gray-50: var(--color-bg-subtle);
+  --color-gray-100: var(--color-bg-inset);
+  --color-gray-200: var(--color-border-strong);
+  --color-gray-300: var(--color-text-muted);
+  --color-gray-400: var(--color-text-secondary);
+  --color-accent-light: var(--color-bg-inset);
+  --color-accent-dark: var(--color-text);
+  --color-warning: var(--color-target);
+  --color-warning-light: var(--color-target-muted);
+  --color-info: var(--color-text-secondary);
+  --color-surface: var(--color-bg-subtle);
 }

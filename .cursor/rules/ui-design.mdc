@@ -1,0 +1,34 @@
+---
+description: Keep new UI pages and modules aligned with FeedTheBeast design tokens and shared workspace patterns
+globs: src/**/*.{tsx,css,module.css}
+alwaysApply: false
+---
+
+# UI design consistency
+
+When adding or restyling routes, components, or CSS modules under `src/`:
+
+## Reuse before inventing
+
+1. Prefer shared classes from [`src/styles/workspace-page.module.css`](src/styles/workspace-page.module.css): `layout`, `main`, `pageHeader`, `pageTitle`, `eyebrow`, `primaryBtn`, `secondaryBtn`, `linkBtn`, `card`, `cardGrid`, `status`, `section`.
+2. Compose those classes (`composes: primaryBtn from '...'`) like [`RecipeEmptyState`](src/components/RecipeEmptyState/styles.module.css) instead of re-declaring button/eyebrow styles.
+3. Match empty/setup screens to the elevated panel + top accent bar pattern used by RecipeEmptyState / AuthGate — not a flat centered stack of one-off styles.
+
+## Tokens and CSS conventions
+
+- Colors: only `var(--color-*)` from [`src/styles/config/_colors.css`](src/styles/config/_colors.css)
+- Type: `var(--fs-*)`, `var(--fw-*)`, `var(--lh-*)` from typography utils
+- Spacing: `var(--sp-*)` from [`src/styles/util/_spacing.css`](src/styles/util/_spacing.css)
+- Breakpoints: project custom media only (`--bp-sm`, `--bp-md`, `--bp-lg`, …) from [`src/styles/config/_breakpoints.css`](src/styles/config/_breakpoints.css) — never invent `--md` / raw `768px` media queries
+- Author CSS with nesting; keep modules scoped; avoid one-off purple/glow/pill aesthetics that fight the existing high-contrast light/dark system
+
+## Modals and overlays
+
+- Use [`SlidePanel`](src/components/SlidePanel/index.tsx) for dialogs, forms, and confirmations — not centred modal chrome. Follow existing consumers (`CreatePlanDialog`, `FoodSearchModal`, `CloudAuthPanel`) and shared footer/form styles in [`panel.module.css`](src/components/SlidePanel/panel.module.css).
+- Do not introduce a second popup pattern unless SlidePanel clearly cannot fit the interaction.
+
+## Page structure
+
+- Workspace pages: `layout` + `main` + `pageHeader` (eyebrow + `h1` at `--fs-3xl`) + actions using `primaryBtn` / `secondaryBtn` / `linkBtn`
+- Long-form pages (e.g. privacy): follow [`src/routes/privacy/styles.module.css`](src/routes/privacy/styles.module.css) — container width, muted body copy, underlined accent links
+- Keep Header/Footer as the chrome; auth/setup content should still use the workspace shell and the same typography/button language

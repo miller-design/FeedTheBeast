@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 
 import {
   createRecipeFromImport,
@@ -7,10 +8,10 @@ import {
   getAllRecipes,
   saveRecipe,
 } from '#/lib/db/recipes'
-import type { CreateRecipeInput, ImportedRecipeDraft, Recipe } from '#/types/recipe'
+import type { CreateRecipeInput, ImportedRecipeDraft } from '#/types/recipe'
 
 /**
- * Hook for managing the recipe library.
+ * Hook for managing the recipe library with live Dexie updates.
  *
  * @returns Recipes list and CRUD helpers
  *
@@ -18,19 +19,8 @@ import type { CreateRecipeInput, ImportedRecipeDraft, Recipe } from '#/types/rec
  * const { recipes, loading, addRecipe, removeRecipe } = useRecipes()
  */
 export function useRecipes() {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    const data = await getAllRecipes()
-    setRecipes(data)
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  const recipes = useLiveQuery(() => getAllRecipes(), [])
+  const loading = recipes === undefined
 
   /**
    * Saves a manually created recipe.
@@ -38,15 +28,11 @@ export function useRecipes() {
    * @param input - Recipe form values
    * @returns New recipe ID
    */
-  const addRecipe = useCallback(
-    async (input: CreateRecipeInput): Promise<string> => {
-      const recipe = createRecipeFromInput(input)
-      await saveRecipe(recipe)
-      await refresh()
-      return recipe.id
-    },
-    [refresh],
-  )
+  const addRecipe = useCallback(async (input: CreateRecipeInput): Promise<string> => {
+    const recipe = createRecipeFromInput(input)
+    await saveRecipe(recipe)
+    return recipe.id
+  }, [])
 
   /**
    * Saves an imported recipe draft.
@@ -58,10 +44,9 @@ export function useRecipes() {
     async (draft: ImportedRecipeDraft): Promise<string> => {
       const recipe = createRecipeFromImport(draft)
       await saveRecipe(recipe)
-      await refresh()
       return recipe.id
     },
-    [refresh],
+    [],
   )
 
   /**
@@ -69,13 +54,15 @@ export function useRecipes() {
    *
    * @param id - Recipe UUID
    */
-  const removeRecipe = useCallback(
-    async (id: string) => {
-      await deleteRecipe(id)
-      await refresh()
-    },
-    [refresh],
-  )
+  const removeRecipe = useCallback(async (id: string) => {
+    await deleteRecipe(id)
+  }, [])
 
-  return { recipes, loading, addRecipe, addImportedRecipe, removeRecipe, refresh }
+  return {
+    recipes: recipes ?? [],
+    loading,
+    addRecipe,
+    addImportedRecipe,
+    removeRecipe,
+  }
 }

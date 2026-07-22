@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as PlansPlanIdRouteImport } from './routes/plans/$planId'
 import { Route as PrivacyIndexRouteImport } from './routes/privacy/index'
 import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
@@ -17,6 +18,11 @@ import { Route as RecipesIndexRouteImport } from './routes/recipes/index'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountIndexRoute = AccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlansPlanIdRoute = PlansPlanIdRouteImport.update({
@@ -38,12 +44,14 @@ const RecipesIndexRoute = RecipesIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/plans/$planId': typeof PlansPlanIdRoute
+  '/account/': typeof AccountIndexRoute
   '/privacy/': typeof PrivacyIndexRoute
   '/recipes/': typeof RecipesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/plans/$planId': typeof PlansPlanIdRoute
+  '/account': typeof AccountIndexRoute
   '/privacy': typeof PrivacyIndexRoute
   '/recipes': typeof RecipesIndexRoute
 }
@@ -51,20 +59,28 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/plans/$planId': typeof PlansPlanIdRoute
+  '/account/': typeof AccountIndexRoute
   '/privacy/': typeof PrivacyIndexRoute
   '/recipes/': typeof RecipesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/plans/$planId' | '/privacy/' | '/recipes/'
+  fullPaths: '/' | '/plans/$planId' | '/account/' | '/privacy/' | '/recipes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/plans/$planId' | '/privacy' | '/recipes'
-  id: '__root__' | '/' | '/plans/$planId' | '/privacy/' | '/recipes/'
+  to: '/' | '/plans/$planId' | '/account' | '/privacy' | '/recipes'
+  id:
+    | '__root__'
+    | '/'
+    | '/plans/$planId'
+    | '/account/'
+    | '/privacy/'
+    | '/recipes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlansPlanIdRoute: typeof PlansPlanIdRoute
+  AccountIndexRoute: typeof AccountIndexRoute
   PrivacyIndexRoute: typeof PrivacyIndexRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
 }
@@ -76,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account/': {
+      id: '/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AccountIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plans/$planId': {
@@ -105,6 +128,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlansPlanIdRoute: PlansPlanIdRoute,
+  AccountIndexRoute: AccountIndexRoute,
   PrivacyIndexRoute: PrivacyIndexRoute,
   RecipesIndexRoute: RecipesIndexRoute,
 }

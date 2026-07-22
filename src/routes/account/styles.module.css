@@ -1,0 +1,121 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.form {
+  composes: form from '../../components/SlidePanel/panel.module.css';
+  max-width: 28rem;
+}
+
+.field {
+  composes: field from '../../components/SlidePanel/panel.module.css';
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.copy {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+}
+
+.success {
+  composes: status from '../../styles/workspace-page.module.css';
+  color: var(--color-success);
+}
+
+.metaCard {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1.25rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.metaLabel {
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+}
+
+.metaValue {
+  min-width: 0;
+  text-align: right;
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dangerZone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 36rem;
+  padding: var(--sp-2);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 75%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+
+.dangerTitle {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--color-danger);
+}
+
+.dangerCopy {
+  margin: 0;
+  max-width: 36rem;
+  color: color-mix(in srgb, var(--color-danger) 40%, var(--color-text));
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+}
+
+.dangerBtn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-danger);
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-danger);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  }
+}

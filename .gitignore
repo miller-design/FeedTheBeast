@@ -11,3 +11,6 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+dexie-cloud.json
+dexie-cloud.key

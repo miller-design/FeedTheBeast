@@ -47,6 +47,18 @@
   border-left: 2px solid var(--color-nav-active);
 }
 
+.disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
+
+  &:hover {
+    color: var(--color-text-muted);
+    background: transparent;
+  }
+}
+
 @media (--bp-md) {
   .root {
     width: 16rem;

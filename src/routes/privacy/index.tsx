@@ -26,37 +26,54 @@ function PrivacyPolicy() {
         <section className={styles.section}>
           <h2>Overview</h2>
           <p>
-            {SITE_NAME} is a free meal-planning tool. We do not require an account, we do not
-            sell your data, and we do not use analytics or advertising trackers.
+            {SITE_NAME} is a free meal-planning tool. An account is required so your plans and
+            recipes can sync across devices. We do not sell your data, and we do not use analytics
+            or advertising trackers.
           </p>
         </section>
 
         <section className={styles.section}>
           <h2>What we collect</h2>
           <p>
-            We do not collect personal information on our servers. Everything you create in the
-            app — meal plans, saved meals, recipes, and nutrition entries — is stored locally in
-            your browser using IndexedDB. It never leaves your device unless you choose to use
-            the features described below.
+            When you sign in, we process the email address you use for passwordless (one-time code)
+            authentication through{' '}
+            <a href="https://dexie.org/cloud" rel="noopener noreferrer">
+              Dexie Cloud
+            </a>
+            .
           </p>
           <p>
-            We also store your light/dark theme preference in your browser&apos;s local storage so
-            the app remembers your choice on future visits.
+            Meal plans, saved meals, recipes, and nutrition entries are stored in your browser
+            (IndexedDB) and synced to Dexie Cloud so you can use {SITE_NAME} on multiple devices.
+            Your light/dark theme preference stays in local storage on each device.
           </p>
         </section>
 
         <section className={styles.section}>
           <h2>What we do not do</h2>
           <ul>
-            <li>No user accounts or sign-in</li>
             <li>No analytics, cookies, or tracking pixels</li>
             <li>No advertising or profiling</li>
-            <li>No server-side database of your meal plans or recipes</li>
+            <li>We do not sell your personal data</li>
           </ul>
         </section>
 
         <section className={styles.section}>
-          <h2>When you use optional online features</h2>
+          <h2>Sync and account</h2>
+          <p>
+            Sync is part of the product: after you sign in, your meal-planning data is replicated
+            through Dexie Cloud&apos;s hosted service under their terms and privacy practices, in
+            addition to this policy.
+          </p>
+          <p>
+            You can sign out from the header on any device. Signing out stops sync on that device;
+            data already on other signed-in devices is unchanged until you delete it there or in
+            the app.
+          </p>
+        </section>
+
+        <section className={styles.section}>
+          <h2>When you use food search or recipe import</h2>
           <p>
             Some features need a short-lived request through our server because browsers cannot
             call certain external sites directly:
@@ -85,9 +102,10 @@ function PrivacyPolicy() {
         <section className={styles.section}>
           <h2>Deleting your data</h2>
           <p>
-            Because your data lives in your browser, you can remove it at any time by clearing
-            site data for {SITE_NAME} in your browser settings, or by deleting individual plans
-            and recipes inside the app.
+            Delete individual plans and recipes inside the app. You can also clear site data for{' '}
+            {SITE_NAME} in your browser settings to remove the local cache on that device. To
+            remove synced cloud data associated with your account, contact the site maintainer or
+            use Dexie Cloud account controls if available for your database.
           </p>
         </section>
 
@@ -95,7 +113,7 @@ function PrivacyPolicy() {
           <h2>Children</h2>
           <p>
             {SITE_NAME} is a general-purpose tool and is not directed at children under 13. We do
-            not knowingly collect personal information from anyone.
+            not knowingly collect personal information from children.
           </p>
         </section>
 

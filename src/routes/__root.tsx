@@ -1,8 +1,11 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
+
+import AuthGate from '#/components/AuthGate'
+import CloudAuthPanel from '#/components/CloudAuthPanel'
+import Footer from '#/components/Footer'
+import Header from '#/components/Header'
 
 import mainCss from '../main.css?url'
-import Header from '#/components/Header'
-import Footer from '#/components/Footer'
 
 const themeInitScript = `
 (function() {
@@ -21,8 +24,29 @@ export const Route = createRootRoute({
     ],
     links: [{ rel: 'stylesheet', href: mainCss }],
   }),
+  component: AppLayout,
   shellComponent: RootDocument,
 })
+
+/**
+ * Persistent chrome with auth wrapping route content only.
+ * Privacy stays readable without signing in.
+ */
+function AppLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const isPublic = pathname === '/privacy' || pathname === '/privacy/'
+
+  return (
+    <>
+      <Header />
+      <AuthGate allowPublic={isPublic}>
+        <Outlet />
+      </AuthGate>
+      <Footer />
+      <CloudAuthPanel />
+    </>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -32,9 +56,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <Header />
         {children}
-        <Footer />
         <Scripts />
       </body>
     </html>

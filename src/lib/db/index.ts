@@ -1,7 +1,8 @@
 import Dexie from 'dexie'
-import type { Table } from 'dexie'
+import type { Table, Transaction } from 'dexie'
 import dexieCloud from 'dexie-cloud-addon'
 
+import { ensureUniquePlanSlug, slugify } from '#/lib/slug'
 import type { MealPlan, SavedMeal } from '#/types/meal-plan'
 import type { UserProfile } from '#/types/profile'
 import type { Recipe } from '#/types/recipe'
@@ -38,6 +39,16 @@ export class FeedTheBeastDB extends Dexie {
       recipes: 'id, name, sourceSite, createdAt, updatedAt',
       profiles: 'id, username, updatedAt',
     })
+    this.version(4)
+      .stores({
+        mealPlans: 'id, slug, name, createdAt, updatedAt',
+        savedMeals: 'id, name, createdAt',
+        recipes: 'id, name, sourceSite, createdAt, updatedAt',
+        profiles: 'id, username, updatedAt',
+      })
+      .upgrade(async (tx) => {
+        await backfillMealPlanSlugs(tx)
+      })
 
     const databaseUrl = import.meta.env.VITE_DEXIE_CLOUD_URL ?? ''
     if (typeof window !== 'undefined' && databaseUrl.trim()) {
@@ -47,6 +58,32 @@ export class FeedTheBeastDB extends Dexie {
         customLoginGui: true,
       })
     }
+  }
+}
+
+/**
+ * Assigns unique slugs to meal plans that predate the slug field.
+ *
+ * @param tx - Dexie upgrade transaction for version 4
+ */
+async function backfillMealPlanSlugs(tx: Transaction): Promise<void> {
+  const table = tx.table('mealPlans')
+  const plans = (await table.toArray()) as Array<Partial<MealPlan> & { id: string; name: string }>
+  const used = new Set<string>()
+
+  for (const plan of plans) {
+    if (typeof plan.slug === 'string' && plan.slug.length > 0) {
+      used.add(plan.slug)
+    }
+  }
+
+  for (const plan of plans) {
+    if (typeof plan.slug === 'string' && plan.slug.length > 0) {
+      continue
+    }
+    const slug = ensureUniquePlanSlug(slugify(plan.name), used)
+    used.add(slug)
+    await table.update(plan.id, { slug })
   }
 }
 

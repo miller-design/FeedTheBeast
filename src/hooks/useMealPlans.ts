@@ -3,10 +3,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 
 import {
   deleteMealPlan,
+  getAllMealPlanSlugs,
   getAllMealPlans,
   saveMealPlan,
 } from '#/lib/db/meal-plans'
 import { createMealPlan } from '#/lib/meal-plan-factory'
+import { ensureUniquePlanSlug, slugify } from '#/lib/slug'
 import type { CreatePlanInput } from '#/types/meal-plan'
 
 /**
@@ -23,15 +25,17 @@ export function useMealPlans() {
   const loading = plans === undefined
 
   /**
-   * Creates and persists a new meal plan.
+   * Creates and persists a new meal plan with a unique URL slug.
    *
    * @param input - Plan creation form values
-   * @returns The new plan's ID
+   * @returns The new plan's slug for navigation
    */
   const createPlan = useCallback(async (input: CreatePlanInput): Promise<string> => {
-    const plan = createMealPlan(input)
+    const existingSlugs = await getAllMealPlanSlugs()
+    const slug = ensureUniquePlanSlug(slugify(input.name), existingSlugs)
+    const plan = createMealPlan(input, slug)
     await saveMealPlan(plan)
-    return plan.id
+    return plan.slug
   }, [])
 
   /**

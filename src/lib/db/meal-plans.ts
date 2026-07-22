@@ -26,6 +26,34 @@ export async function getMealPlanById(
 }
 
 /**
+ * Fetches a single meal plan by its URL slug.
+ *
+ * @param slug - Unique plan slug e.g. `"week-1-cut"`
+ * @returns Plan or undefined if not found
+ *
+ * @example
+ * const plan = await getMealPlanBySlug('week-1-cut')
+ */
+export async function getMealPlanBySlug(
+  slug: string,
+): Promise<MealPlan | undefined> {
+  return db.mealPlans.where('slug').equals(slug).first()
+}
+
+/**
+ * Collects every plan slug currently stored (for uniqueness checks).
+ *
+ * @returns Array of slug strings
+ *
+ * @example
+ * const slugs = await getAllMealPlanSlugs()
+ */
+export async function getAllMealPlanSlugs(): Promise<string[]> {
+  const keys = await db.mealPlans.orderBy('slug').keys()
+  return keys.filter((key): key is string => typeof key === 'string')
+}
+
+/**
  * Persists a new meal plan to IndexedDB.
  *
  * @param plan - Complete meal plan object

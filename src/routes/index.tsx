@@ -19,8 +19,12 @@ function Home() {
   const navigate = Route.useNavigate()
 
   async function handleCreate(input: Parameters<typeof createPlan>[0]) {
-    const id = await createPlan(input)
-    void navigate({ to: '/plans/$planId', params: { planId: id }, search: { edit: true } })
+    const slug = await createPlan(input)
+    void navigate({
+      to: '/plans/$planSlug',
+      params: { planSlug: slug },
+      search: { edit: true },
+    })
   }
 
   return (
@@ -62,8 +66,8 @@ function Home() {
                 return (
                   <li key={plan.id} className={workspaceStyles.itemCard}>
                     <Link
-                      to="/plans/$planId"
-                      params={{ planId: plan.id }}
+                      to="/plans/$planSlug"
+                      params={{ planSlug: plan.slug }}
                       search={{ edit: false }}
                       className={styles.planLink}
                     >

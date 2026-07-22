@@ -62,22 +62,27 @@ export function createPlanDay(date: string, calorieTarget: number): PlanDay {
  * Creates a new meal plan from user input.
  *
  * @param input - Plan creation form values
+ * @param slug - Unique URL slug already resolved for this plan
  * @returns Complete MealPlan ready for IndexedDB storage
  *
  * @example
- * createMealPlan({
- *   name: 'Week 1',
- *   startDate: '2026-07-22',
- *   durationDays: 7,
- *   defaultCalorieTarget: 2000,
- * })
+ * createMealPlan(
+ *   {
+ *     name: 'Week 1',
+ *     startDate: '2026-07-22',
+ *     durationDays: 7,
+ *     defaultCalorieTarget: 2000,
+ *   },
+ *   'week-1',
+ * )
  */
-export function createMealPlan(input: CreatePlanInput): MealPlan {
+export function createMealPlan(input: CreatePlanInput, slug: string): MealPlan {
   const now = new Date().toISOString()
   const dates = generateDateRange(input.startDate, input.durationDays)
 
   return {
     id: createId(),
+    slug,
     name: input.name,
     startDate: input.startDate,
     defaultCalorieTarget: input.defaultCalorieTarget,

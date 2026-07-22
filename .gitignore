@@ -12,5 +12,6 @@ dist-ssr
 __unconfig*
 todos.json
 
+# dexie details
 dexie-cloud.json
 dexie-cloud.key

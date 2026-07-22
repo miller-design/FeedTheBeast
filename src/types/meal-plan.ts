@@ -39,6 +39,8 @@ export type PlanDay = {
 /** Full meal plan stored in IndexedDB */
 export type MealPlan = {
   id: string
+  /** URL-safe unique slug derived from `name` */
+  slug: string
   name: string
   startDate: string
   days: PlanDay[]

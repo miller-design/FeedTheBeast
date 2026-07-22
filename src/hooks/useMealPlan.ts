@@ -1,21 +1,21 @@
 import { useCallback, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 
-import { getMealPlanById, updateMealPlan } from '#/lib/db/meal-plans'
+import { getMealPlanBySlug, updateMealPlan } from '#/lib/db/meal-plans'
 import type { MealPlan } from '#/types/meal-plan'
 
 /**
  * Hook for loading and persisting a single meal plan in the editor.
  * Subscribes via live query so remote sync updates appear automatically.
  *
- * @param planId - UUID of the plan to edit
+ * @param planSlug - URL slug of the plan to edit
  * @returns Plan data, loading state, and save helper
  *
  * @example
- * const { plan, loading, savePlan } = useMealPlan('abc-123')
+ * const { plan, loading, savePlan } = useMealPlan('week-1-cut')
  */
-export function useMealPlan(planId: string) {
-  const plan = useLiveQuery(() => getMealPlanById(planId), [planId])
+export function useMealPlan(planSlug: string) {
+  const plan = useLiveQuery(() => getMealPlanBySlug(planSlug), [planSlug])
   const [saving, setSaving] = useState(false)
 
   const loading = plan === undefined

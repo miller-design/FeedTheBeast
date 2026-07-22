@@ -5,7 +5,7 @@ import { useMealPlan } from '#/hooks/useMealPlan'
 
 import styles from './styles.module.css'
 
-export const Route = createFileRoute('/plans/$planId')({
+export const Route = createFileRoute('/plans/$planSlug')({
   validateSearch: (search: Record<string, unknown>) => ({
     edit:
       search.edit === true ||
@@ -17,9 +17,9 @@ export const Route = createFileRoute('/plans/$planId')({
 })
 
 function PlanPage() {
-  const { planId } = Route.useParams()
+  const { planSlug } = Route.useParams()
   const { edit } = Route.useSearch()
-  const { plan, loading, saving, savePlan } = useMealPlan(planId)
+  const { plan, loading, saving, savePlan } = useMealPlan(planSlug)
 
   if (loading) {
     return (

@@ -1,0 +1,25 @@
+/* Config */
+@import './styles/config/_main.css';
+
+/* Util */
+@import './styles/util/_spacing.css';
+@import './styles/util/_typography.css';
+@import './styles/util/_container.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #000;
+  background-color: var(--color-white);
+  font-family: system-ui, sans-serif;
+  font-size: var(--fs-base);
+}

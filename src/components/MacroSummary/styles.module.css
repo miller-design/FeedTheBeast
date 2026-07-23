@@ -14,16 +14,18 @@
 
 .metric {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-wrap: wrap;
+  column-gap: 0.5rem;
 }
 
 .label {
+  width: 100%;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
 }
 
 .value {

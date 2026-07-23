@@ -16,7 +16,12 @@ const MacroSummary = ({ day }: MacroSummaryProps) => {
   const totals = sumNutrition(allItems)
 
   const metrics = [
-    { label: 'Energy', unit: 'kcal', current: totals.calories, target: day.calorieTarget },
+    {
+      label: 'Energy',
+      unit: 'kcal',
+      current: totals.calories,
+      target: day.calorieTarget,
+    },
     { label: 'Protein', unit: 'g', current: totals.protein, target: null },
     { label: 'Carbs', unit: 'g', current: totals.carbs, target: null },
     { label: 'Fat', unit: 'g', current: totals.fat, target: null },

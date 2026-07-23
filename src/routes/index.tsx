@@ -7,7 +7,6 @@ import { formatPlanDate } from '#/lib/dates'
 import { useMealPlans } from '#/hooks/useMealPlans'
 
 import workspaceStyles from '#/styles/workspace-page.module.css'
-import styles from './styles.module.css'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -60,20 +59,21 @@ function Home() {
           )}
 
           {!loading && plans.length > 0 && (
-            <ul className={workspaceStyles.itemList}>
+            <ul className={workspaceStyles.cardGrid}>
               {plans.map((plan) => {
-                const endDate = plan.days[plan.days.length - 1]?.date ?? plan.startDate
+                const endDate =
+                  plan.days[plan.days.length - 1]?.date ?? plan.startDate
                 return (
-                  <li key={plan.id} className={workspaceStyles.itemCard}>
-                    <Link
-                      to="/plans/$planSlug"
-                      params={{ planSlug: plan.slug }}
-                      search={{ edit: false }}
-                      className={styles.planLink}
-                    >
-                      <span className={styles.planName}>{plan.name}</span>
-                      <span className={styles.planMeta}>
-                        {formatPlanDate(plan.startDate, { day: 'numeric', month: 'short' })}
+                  <li key={plan.id} className={workspaceStyles.card}>
+                    <div className={workspaceStyles.planBody}>
+                      <span className={workspaceStyles.planName}>
+                        {plan.name}
+                      </span>
+                      <span className={workspaceStyles.planDate}>
+                        {formatPlanDate(plan.startDate, {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
                         {' – '}
                         {formatPlanDate(endDate, {
                           day: 'numeric',
@@ -81,23 +81,38 @@ function Home() {
                           year: 'numeric',
                         })}
                         {' · '}
-                        {plan.days.length} day{plan.days.length !== 1 ? 's' : ''}
-                        {' · '}
+                        {plan.days.length} day
+                        {plan.days.length !== 1 ? 's' : ''}
+                      </span>
+                      <span className={workspaceStyles.planCalories}>
                         {plan.defaultCalorieTarget} kcal/day
                       </span>
-                    </Link>
-                    <button
-                      type="button"
-                      className={workspaceStyles.listDeleteBtn}
-                      onClick={() => {
-                        if (confirm(`Delete "${plan.name}"? This cannot be undone.`)) {
-                          void removePlan(plan.id)
-                        }
-                      }}
-                      aria-label={`Delete ${plan.name}`}
-                    >
-                      Delete
-                    </button>
+                    </div>
+                    <div className={workspaceStyles.planFooter}>
+                      <Link
+                        to="/plans/$planSlug"
+                        params={{ planSlug: plan.slug }}
+                        search={{ edit: false }}
+                        className={workspaceStyles.planOpen}
+                      >
+                        Open →
+                      </Link>
+                      <button
+                        type="button"
+                        className={workspaceStyles.planDelete}
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Delete "${plan.name}"? This cannot be undone.`,
+                            )
+                          ) {
+                            void removePlan(plan.id)
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </li>
                 )
               })}

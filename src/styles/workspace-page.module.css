@@ -117,57 +117,22 @@
   font-size: var(--fs-sm);
 }
 
-.itemList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.itemCard {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  background: var(--color-bg-elevated);
-  overflow: hidden;
-  transition: border-color 0.15s ease;
-
-  &:hover {
-    border-color: var(--color-border-strong);
-  }
-}
-
 .cardGrid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr;
+  /* Track the main column width (sidebar eats viewport space), not breakpoints */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: 0.75rem;
-
-  @media (--bp-sm) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (--bp-md) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  @media (--bp-lg) {
-    grid-template-columns: repeat(4, 1fr);
-  }
 }
 
 .card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--sp-2);
-  padding: var(--sp-2);
+  gap: 0.75rem;
+  padding: var(--sp-1);
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-bg-elevated);
@@ -200,7 +165,65 @@
   align-self: flex-start;
 }
 
-.listDeleteBtn {
-  composes: deleteBtn;
-  margin-right: var(--sp-2);
+.planBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.planName {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-base);
+  line-height: var(--lh-tight);
+}
+
+.planDate {
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+.planCalories {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.planFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: auto;
+  padding-top: var(--sp-2);
+}
+
+.planOpen {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.card:hover .planOpen {
+  color: var(--color-text);
+}
+
+.planDelete {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-danger);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }

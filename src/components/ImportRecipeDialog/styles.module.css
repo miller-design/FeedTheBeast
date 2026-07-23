@@ -21,6 +21,10 @@
   color: var(--color-text-secondary);
 }
 
+.tags {
+  margin-bottom: 0.75rem;
+}
+
 .details {
   font-size: var(--fs-sm);
 

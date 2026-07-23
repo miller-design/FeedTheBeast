@@ -4,6 +4,12 @@ import clsx from 'clsx'
 
 import { scaleFrom100g } from '#/lib/nutrition'
 import { DND_TYPES } from '#/lib/dnd'
+import {
+  RECIPE_TAGS,
+  RECIPE_TAG_LABELS,
+  toggleRecipeTag,
+  type RecipeTag,
+} from '#/lib/recipe-tags'
 import { searchFoods } from '#/server/search-foods'
 import type { OffSearchResult } from '#/types/meal-plan'
 import type { Recipe } from '#/types/recipe'
@@ -25,29 +31,49 @@ const CALORIE_FILTERS: { value: CalorieFilter; label: string }[] = [
 ]
 
 /**
- * Filters recipes by name, ingredients, and calorie range.
+ * Returns a recipe's tags, defaulting to an empty list for legacy records.
+ *
+ * @param recipe - Recipe that may predate the tags field
+ * @returns Controlled tags array
+ */
+function recipeTags(recipe: Recipe): RecipeTag[] {
+  return Array.isArray(recipe.tags) ? recipe.tags : []
+}
+
+/**
+ * Filters recipes by name, ingredients, calorie range, and meal-type tags.
+ *
+ * Tag filters use OR matching: a recipe matches if it has any selected tag.
+ * When no tags are selected, tag filtering is skipped.
  *
  * @param recipes - Full recipe library
  * @param query - Search text e.g. `"chicken"`
  * @param calorieFilter - Calorie preset e.g. `"300to500"`
+ * @param tagFilters - Selected meal-type tags e.g. `['breakfast']`
  * @returns Matching recipes
  *
  * @example
- * filterRecipes(recipes, 'chicken', 'under300')
+ * filterRecipes(recipes, 'chicken', 'under300', ['lunch'])
  */
 function filterRecipes(
   recipes: Recipe[],
   query: string,
   calorieFilter: CalorieFilter,
+  tagFilters: RecipeTag[],
 ): Recipe[] {
   const normalizedQuery = query.trim().toLowerCase()
 
   return recipes.filter((recipe) => {
     const calories = recipe.nutrition.calories
+    const tags = recipeTags(recipe)
 
     if (calorieFilter === 'under300' && calories >= 300) return false
     if (calorieFilter === '300to500' && (calories < 300 || calories > 500)) return false
     if (calorieFilter === 'over500' && calories <= 500) return false
+
+    if (tagFilters.length > 0 && !tagFilters.some((tag) => tags.includes(tag))) {
+      return false
+    }
 
     if (!normalizedQuery) return true
 
@@ -73,14 +99,18 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
   const [query, setQuery] = useState('')
   const [recipeQuery, setRecipeQuery] = useState('')
   const [calorieFilter, setCalorieFilter] = useState<CalorieFilter>('all')
+  const [tagFilters, setTagFilters] = useState<RecipeTag[]>([])
   const [results, setResults] = useState<OffSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const filteredRecipes = useMemo(
-    () => filterRecipes(recipes, recipeQuery, calorieFilter),
-    [recipes, recipeQuery, calorieFilter],
+    () => filterRecipes(recipes, recipeQuery, calorieFilter, tagFilters),
+    [recipes, recipeQuery, calorieFilter, tagFilters],
   )
+
+  const hasActiveRecipeFilters =
+    recipeQuery.length > 0 || calorieFilter !== 'all' || tagFilters.length > 0
 
   /**
    * Debounced search — runs automatically as the user types (min 2 chars).
@@ -132,11 +162,12 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
   }
 
   /**
-   * Clears recipe search and calorie filter.
+   * Clears recipe search, calorie, and tag filters.
    */
   function handleClearRecipeFilters() {
     setRecipeQuery('')
     setCalorieFilter('all')
+    setTagFilters([])
   }
 
   return (
@@ -249,6 +280,30 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
               </div>
 
               <div className={styles.filterField}>
+                <span className={styles.searchLabel}>Meal type</span>
+                <div className={styles.tagFilters} role="group" aria-label="Meal type filter">
+                  {RECIPE_TAGS.map((tag) => {
+                    const active = tagFilters.includes(tag)
+
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={clsx(
+                          styles.tagFilterBtn,
+                          active && styles.tagFilterActive,
+                        )}
+                        onClick={() => setTagFilters(toggleRecipeTag(tagFilters, tag))}
+                        aria-pressed={active}
+                      >
+                        {RECIPE_TAG_LABELS[tag]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className={styles.filterField}>
                 <span className={styles.searchLabel}>Calories / serving</span>
                 <div className={styles.calorieFilters} role="group" aria-label="Calorie filter">
                   {CALORIE_FILTERS.map((option) => (
@@ -271,7 +326,7 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
               {filteredRecipes.length === 0 ? (
                 <p className={styles.hint}>
                   No recipes match your search.
-                  {(recipeQuery.length > 0 || calorieFilter !== 'all') && (
+                  {hasActiveRecipeFilters && (
                     <>
                       {' '}
                       <button
@@ -353,6 +408,8 @@ type DraggableRecipeProps = {
 
 /** Draggable recipe from the user's library */
 function DraggableRecipe({ recipe }: DraggableRecipeProps) {
+  const tags = recipeTags(recipe)
+
   const { attributes, listeners, setNodeRef, isDragging } =
     useDraggable({
       id: `library-recipe-${recipe.id}`,
@@ -376,6 +433,11 @@ function DraggableRecipe({ recipe }: DraggableRecipeProps) {
       {...attributes}
     >
       <span className={styles.itemName}>{recipe.name}</span>
+      {tags.length > 0 && (
+        <span className={styles.itemTags}>
+          {tags.map((tag) => RECIPE_TAG_LABELS[tag]).join(' · ')}
+        </span>
+      )}
       <span className={styles.itemMeta}>
         {recipe.nutrition.calories} kcal/serving · drag to add
       </span>

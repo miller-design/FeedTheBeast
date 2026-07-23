@@ -1,7 +1,9 @@
 import { useState } from 'react'
 
+import RecipeTagPicker from '#/components/RecipeTagPicker'
 import SlidePanel from '#/components/SlidePanel'
 import panelStyles from '#/components/SlidePanel/panel.module.css'
+import type { RecipeTag } from '#/lib/recipe-tags'
 import { importRecipeFromUrl } from '#/server/import-recipe'
 import type { ImportedRecipeDraft } from '#/types/recipe'
 
@@ -60,6 +62,15 @@ const ImportRecipeDialog = ({ open, onClose, onSave }: ImportRecipeDialogProps) 
     } finally {
       setImporting(false)
     }
+  }
+
+  /**
+   * Updates meal-type tags on the import preview before saving.
+   *
+   * @param tags - Edited controlled tags e.g. `['lunch']`
+   */
+  function handleTagsChange(tags: RecipeTag[]) {
+    setPreview((current) => (current ? { ...current, tags } : current))
   }
 
   /**
@@ -136,6 +147,15 @@ const ImportRecipeDialog = ({ open, onClose, onSave }: ImportRecipeDialogProps) 
             )}
             <span>{preview.nutrition.calories} kcal/serving</span>
           </div>
+
+          <div className={styles.tags}>
+            <RecipeTagPicker
+              value={preview.tags}
+              onChange={handleTagsChange}
+              hint="Suggested from the recipe page — edit before saving if needed."
+            />
+          </div>
+
           <details className={styles.details}>
             <summary>{preview.ingredients.length} ingredients</summary>
             <ul>

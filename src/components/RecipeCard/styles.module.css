@@ -19,6 +19,12 @@
   line-height: var(--lh-tight);
 }
 
+.tags {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-secondary);
+}
+
 .meta {
   font-family: ui-monospace, 'SF Mono', monospace;
   font-size: var(--fs-xs);

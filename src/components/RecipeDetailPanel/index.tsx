@@ -1,5 +1,9 @@
+import { useState } from 'react'
+
+import RecipeTagPicker from '#/components/RecipeTagPicker'
 import SlidePanel from '#/components/SlidePanel'
 import panelStyles from '#/components/SlidePanel/panel.module.css'
+import type { RecipeTag } from '#/lib/recipe-tags'
 
 import type { RecipeDetailPanelProps } from './types'
 import styles from './styles.module.css'
@@ -34,17 +38,34 @@ function buildSubtitle(recipe: RecipeDetailPanelProps['recipe']): string | undef
 }
 
 /**
+ * Returns tags for a recipe, defaulting to [] for legacy records.
+ *
+ * @param recipe - Recipe that may predate the tags field
+ * @returns Controlled tags
+ */
+function recipeTags(recipe: NonNullable<RecipeDetailPanelProps['recipe']>): RecipeTag[] {
+  return Array.isArray(recipe.tags) ? recipe.tags : []
+}
+
+/**
  * Slide-in panel showing full recipe details: ingredients and cooking method.
  *
  * @param props.recipe - Recipe to display, or null when closed
  * @param props.onClose - Close handler
  * @param props.onDelete - Called when the user confirms deletion
+ * @param props.onUpdateTags - Persists meal-type tag edits
  *
  * @example
- * <RecipeDetailPanel recipe={selected} onClose={() => {}} onDelete={removeRecipe} />
+ * <RecipeDetailPanel recipe={selected} onClose={() => {}} onDelete={removeRecipe} onUpdateTags={setRecipeTags} />
  */
-const RecipeDetailPanel = ({ recipe, onClose, onDelete }: RecipeDetailPanelProps) => {
+const RecipeDetailPanel = ({
+  recipe,
+  onClose,
+  onDelete,
+  onUpdateTags,
+}: RecipeDetailPanelProps) => {
   const open = recipe != null
+  const [savingTags, setSavingTags] = useState(false)
 
   /**
    * Deletes the current recipe and closes the panel.
@@ -54,6 +75,21 @@ const RecipeDetailPanel = ({ recipe, onClose, onDelete }: RecipeDetailPanelProps
     if (confirm(`Delete "${recipe.name}"?`)) {
       void onDelete(recipe.id)
       onClose()
+    }
+  }
+
+  /**
+   * Saves meal-type tag changes for the open recipe.
+   *
+   * @param tags - Updated controlled tags e.g. `['dinner', 'snack']`
+   */
+  async function handleTagsChange(tags: RecipeTag[]) {
+    if (!recipe) return
+    setSavingTags(true)
+    try {
+      await onUpdateTags(recipe.id, tags)
+    } finally {
+      setSavingTags(false)
     }
   }
 
@@ -85,6 +121,15 @@ const RecipeDetailPanel = ({ recipe, onClose, onDelete }: RecipeDetailPanelProps
     >
       {recipe && (
         <div className={styles.content}>
+          <section className={styles.section}>
+            <RecipeTagPicker
+              value={recipeTags(recipe)}
+              onChange={(tags) => void handleTagsChange(tags)}
+              disabled={savingTags}
+              hint="Optional — tag existing recipes here so they show up in plan filters."
+            />
+          </section>
+
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Nutrition per serving</h3>
             <dl className={styles.nutritionGrid}>

@@ -1,3 +1,5 @@
+import type { RecipeTag } from '#/lib/recipe-tags'
+
 /** A single ingredient line in a recipe */
 export type RecipeIngredient = {
   id: string
@@ -28,6 +30,8 @@ export type Recipe = {
   ingredients: RecipeIngredient[]
   instructions: string[]
   nutrition: RecipeNutrition
+  /** Controlled meal-type tags; empty when untagged */
+  tags: RecipeTag[]
   createdAt: string
   updatedAt: string
 }
@@ -45,6 +49,8 @@ export type ImportedRecipeDraft = {
   ingredients: string[]
   instructions: string[]
   nutrition: RecipeNutrition
+  /** Suggested/edited meal-type tags before save */
+  tags: RecipeTag[]
 }
 
 /** Form values for manually creating a recipe */
@@ -55,4 +61,5 @@ export type CreateRecipeInput = {
   ingredients: string[]
   instructions: string[]
   nutrition: RecipeNutrition
+  tags: RecipeTag[]
 }

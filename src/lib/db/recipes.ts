@@ -1,5 +1,6 @@
 import { createId } from '#/lib/meal-plan-factory'
 import { db } from '#/lib/db/index'
+import { normalizeRecipeTags, type RecipeTag } from '#/lib/recipe-tags'
 import type { FoodEntry } from '#/types/meal-plan'
 import type {
   CreateRecipeInput,
@@ -78,6 +79,7 @@ export function createRecipeFromInput(input: CreateRecipeInput): Recipe {
     ingredients: mapIngredients(input.ingredients),
     instructions: input.instructions.map((s) => s.trim()).filter(Boolean),
     nutrition: input.nutrition,
+    tags: normalizeRecipeTags(input.tags),
     createdAt: now,
     updatedAt: now,
   }
@@ -108,9 +110,37 @@ export function createRecipeFromImport(draft: ImportedRecipeDraft): Recipe {
     ingredients: mapIngredients(draft.ingredients),
     instructions: draft.instructions,
     nutrition: draft.nutrition,
+    tags: normalizeRecipeTags(draft.tags),
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/**
+ * Updates meal-type tags on an existing recipe.
+ *
+ * @param id - Recipe UUID
+ * @param tags - Controlled tags to store e.g. `['breakfast', 'snack']`
+ * @returns Updated recipe, or undefined if not found
+ *
+ * @example
+ * await updateRecipeTags(recipeId, ['dinner'])
+ */
+export async function updateRecipeTags(
+  id: string,
+  tags: RecipeTag[],
+): Promise<Recipe | undefined> {
+  const existing = await getRecipeById(id)
+  if (!existing) return undefined
+
+  const updated: Recipe = {
+    ...existing,
+    tags: normalizeRecipeTags(tags),
+    updatedAt: new Date().toISOString(),
+  }
+
+  await saveRecipe(updated)
+  return updated
 }
 
 /**

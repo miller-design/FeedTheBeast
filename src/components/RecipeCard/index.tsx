@@ -1,7 +1,18 @@
+import { RECIPE_TAG_LABELS, type RecipeTag } from '#/lib/recipe-tags'
 import workspaceStyles from '#/styles/workspace-page.module.css'
 
 import type { RecipeCardProps } from './types'
 import styles from './styles.module.css'
+
+/**
+ * Returns tags for a recipe, defaulting to [] for legacy records.
+ *
+ * @param tags - Recipe tags that may be missing on older records
+ * @returns Controlled tags
+ */
+function safeTags(tags: RecipeTag[] | undefined): RecipeTag[] {
+  return Array.isArray(tags) ? tags : []
+}
 
 /**
  * Compact recipe summary card. Opens the detail panel on click.
@@ -13,6 +24,8 @@ import styles from './styles.module.css'
  * <RecipeCard recipe={recipe} onSelect={setSelectedRecipe} />
  */
 const RecipeCard = ({ recipe, onSelect }: RecipeCardProps) => {
+  const tags = safeTags(recipe.tags)
+
   return (
     <li className={workspaceStyles.card}>
       <button
@@ -21,6 +34,11 @@ const RecipeCard = ({ recipe, onSelect }: RecipeCardProps) => {
         onClick={() => onSelect(recipe)}
       >
         <span className={styles.name}>{recipe.name}</span>
+        {tags.length > 0 && (
+          <span className={styles.tags}>
+            {tags.map((tag) => RECIPE_TAG_LABELS[tag]).join(' · ')}
+          </span>
+        )}
         <span className={styles.meta}>
           {recipe.nutrition.calories} kcal/serving · {recipe.servings} servings
           {recipe.ingredients.length > 0 &&

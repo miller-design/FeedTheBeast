@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import ImportRecipeDialog from '#/components/ImportRecipeDialog'
 import NewRecipeDialog from '#/components/NewRecipeDialog'
@@ -8,7 +8,6 @@ import RecipeDetailPanel from '#/components/RecipeDetailPanel'
 import RecipeEmptyState from '#/components/RecipeEmptyState'
 import WorkspaceNav from '#/components/WorkspaceNav'
 import { useRecipes } from '#/hooks/useRecipes'
-import type { Recipe } from '#/types/recipe'
 
 import workspaceStyles from '#/styles/workspace-page.module.css'
 
@@ -17,10 +16,22 @@ export const Route = createFileRoute('/recipes/')({
 })
 
 function RecipesPage() {
-  const { recipes, loading, addRecipe, addImportedRecipe, removeRecipe } = useRecipes()
+  const {
+    recipes,
+    loading,
+    addRecipe,
+    addImportedRecipe,
+    removeRecipe,
+    setRecipeTags,
+  } = useRecipes()
   const [importOpen, setImportOpen] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
+
+  const selectedRecipe = useMemo(
+    () => recipes.find((recipe) => recipe.id === selectedRecipeId) ?? null,
+    [recipes, selectedRecipeId],
+  )
 
   return (
     <div className={workspaceStyles.layout}>
@@ -66,7 +77,7 @@ function RecipesPage() {
                 <RecipeCard
                   key={recipe.id}
                   recipe={recipe}
-                  onSelect={setSelectedRecipe}
+                  onSelect={(selected) => setSelectedRecipeId(selected.id)}
                 />
               ))}
             </ul>
@@ -76,8 +87,9 @@ function RecipesPage() {
 
       <RecipeDetailPanel
         recipe={selectedRecipe}
-        onClose={() => setSelectedRecipe(null)}
+        onClose={() => setSelectedRecipeId(null)}
         onDelete={removeRecipe}
+        onUpdateTags={setRecipeTags}
       />
 
       <ImportRecipeDialog

@@ -49,6 +49,16 @@ export class FeedTheBeastDB extends Dexie {
       .upgrade(async (tx) => {
         await backfillMealPlanSlugs(tx)
       })
+    this.version(5)
+      .stores({
+        mealPlans: 'id, slug, name, createdAt, updatedAt',
+        savedMeals: 'id, name, createdAt',
+        recipes: 'id, name, sourceSite, createdAt, updatedAt, *tags',
+        profiles: 'id, username, updatedAt',
+      })
+      .upgrade(async (tx) => {
+        await backfillRecipeTags(tx)
+      })
 
     const databaseUrl = import.meta.env.VITE_DEXIE_CLOUD_URL ?? ''
     if (typeof window !== 'undefined' && databaseUrl.trim()) {
@@ -85,6 +95,22 @@ async function backfillMealPlanSlugs(tx: Transaction): Promise<void> {
     used.add(slug)
     await table.update(plan.id, { slug })
   }
+}
+
+/**
+ * Ensures existing recipes have a tags array after the multi-entry index is added.
+ *
+ * Meal-type values are left empty for manual backfill in the UI.
+ *
+ * @param tx - Dexie upgrade transaction for version 5
+ */
+async function backfillRecipeTags(tx: Transaction): Promise<void> {
+  const table = tx.table('recipes')
+  await table.toCollection().modify((recipe: Partial<Recipe>) => {
+    if (!Array.isArray(recipe.tags)) {
+      recipe.tags = []
+    }
+  })
 }
 
 export const db = new FeedTheBeastDB()

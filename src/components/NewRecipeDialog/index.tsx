@@ -1,7 +1,9 @@
 import { useState } from 'react'
 
+import RecipeTagPicker from '#/components/RecipeTagPicker'
 import SlidePanel from '#/components/SlidePanel'
 import panelStyles from '#/components/SlidePanel/panel.module.css'
+import type { RecipeTag } from '#/lib/recipe-tags'
 import type { CreateRecipeInput } from '#/types/recipe'
 
 import type { NewRecipeDialogProps } from './types'
@@ -27,6 +29,7 @@ const NewRecipeDialog = ({ open, onClose, onSave }: NewRecipeDialogProps) => {
   const [fat, setFat] = useState(0)
   const [ingredientsText, setIngredientsText] = useState('')
   const [instructionsText, setInstructionsText] = useState('')
+  const [tags, setTags] = useState<RecipeTag[]>([])
   const [submitting, setSubmitting] = useState(false)
 
   /**
@@ -54,6 +57,7 @@ const NewRecipeDialog = ({ open, onClose, onSave }: NewRecipeDialogProps) => {
     setFat(0)
     setIngredientsText('')
     setInstructionsText('')
+    setTags([])
     onClose()
   }
 
@@ -72,6 +76,7 @@ const NewRecipeDialog = ({ open, onClose, onSave }: NewRecipeDialogProps) => {
       ingredients: parseLines(ingredientsText),
       instructions: parseLines(instructionsText),
       nutrition: { calories, protein, carbs, fat },
+      tags,
     }
 
     await onSave(input)
@@ -125,6 +130,12 @@ const NewRecipeDialog = ({ open, onClose, onSave }: NewRecipeDialogProps) => {
             onChange={(e) => setServings(Number(e.target.value))}
           />
         </label>
+
+        <RecipeTagPicker
+          value={tags}
+          onChange={setTags}
+          hint="Optional — used to filter recipes when building meal plans."
+        />
 
         <fieldset className={panelStyles.fieldset}>
           <legend>Nutrition per serving</legend>

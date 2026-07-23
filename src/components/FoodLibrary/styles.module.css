@@ -121,7 +121,14 @@
   gap: 0.35rem;
 }
 
-.calorieFilterBtn {
+.tagFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.calorieFilterBtn,
+.tagFilterBtn {
   padding: 0.4rem 0.35rem;
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
@@ -132,14 +139,19 @@
   font-weight: var(--fw-medium);
   cursor: pointer;
 
-  &:hover:not(.calorieFilterActive) {
+  &:hover:not(.calorieFilterActive):not(.tagFilterActive) {
     border-color: var(--color-border-strong);
     color: var(--color-text);
     background: var(--color-btn-ghost-hover-bg);
   }
 }
 
-.calorieFilterActive {
+.tagFilterBtn {
+  padding-inline: 0.55rem;
+}
+
+.calorieFilterActive,
+.tagFilterActive {
   border-color: var(--color-border-strong);
   background: var(--color-bg-inset);
   color: var(--color-text);
@@ -235,6 +247,13 @@
 }
 
 .itemBrand {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: 0.15rem;
+}
+
+.itemTags {
   display: block;
   font-size: var(--fs-xs);
   color: var(--color-text-secondary);

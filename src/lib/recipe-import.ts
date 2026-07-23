@@ -1,3 +1,4 @@
+import { suggestRecipeTags } from '#/lib/recipe-tags'
 import type { ImportedRecipeDraft, RecipeNutrition } from '#/types/recipe'
 
 type JsonLdNode = Record<string, unknown>
@@ -235,6 +236,7 @@ export function mapJsonLdToRecipeDraft(
     ingredients: parseIngredients(recipeNode.recipeIngredient),
     instructions: parseInstructions(recipeNode.recipeInstructions),
     nutrition: parseSchemaNutrition(nutritionNode),
+    tags: suggestRecipeTags(recipeNode.recipeCategory, recipeNode.keywords),
   }
 }
 

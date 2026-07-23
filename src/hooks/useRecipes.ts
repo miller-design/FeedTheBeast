@@ -7,7 +7,9 @@ import {
   deleteRecipe,
   getAllRecipes,
   saveRecipe,
+  updateRecipeTags,
 } from '#/lib/db/recipes'
+import type { RecipeTag } from '#/lib/recipe-tags'
 import type { CreateRecipeInput, ImportedRecipeDraft } from '#/types/recipe'
 
 /**
@@ -16,7 +18,7 @@ import type { CreateRecipeInput, ImportedRecipeDraft } from '#/types/recipe'
  * @returns Recipes list and CRUD helpers
  *
  * @example
- * const { recipes, loading, addRecipe, removeRecipe } = useRecipes()
+ * const { recipes, loading, addRecipe, removeRecipe, setRecipeTags } = useRecipes()
  */
 export function useRecipes() {
   const recipes = useLiveQuery(() => getAllRecipes(), [])
@@ -50,6 +52,16 @@ export function useRecipes() {
   )
 
   /**
+   * Updates meal-type tags on a recipe (manual backfill / edits).
+   *
+   * @param id - Recipe UUID
+   * @param tags - Controlled tags e.g. `['breakfast']`
+   */
+  const setRecipeTags = useCallback(async (id: string, tags: RecipeTag[]) => {
+    await updateRecipeTags(id, tags)
+  }, [])
+
+  /**
    * Deletes a recipe from the library.
    *
    * @param id - Recipe UUID
@@ -63,6 +75,7 @@ export function useRecipes() {
     loading,
     addRecipe,
     addImportedRecipe,
+    setRecipeTags,
     removeRecipe,
   }
 }

@@ -1,4 +1,4 @@
-import type { Recipe } from '#/types/recipe'
+import type { Recipe, UpdateRecipeInput } from '#/types/recipe'
 import type { RecipeTag } from '#/lib/recipe-tags'
 
 export type RecipeDetailPanelProps = {
@@ -12,4 +12,11 @@ export type RecipeDetailPanelProps = {
    * onUpdateTags={setRecipeTags}
    */
   onUpdateTags: (id: string, tags: RecipeTag[]) => Promise<void>
+  /**
+   * Persists name, servings, nutrition, ingredients, and method edits.
+   *
+   * @example
+   * onUpdateRecipe={editRecipe}
+   */
+  onUpdateRecipe: (id: string, input: UpdateRecipeInput) => Promise<void>
 }

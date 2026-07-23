@@ -23,6 +23,7 @@ function RecipesPage() {
     addImportedRecipe,
     removeRecipe,
     setRecipeTags,
+    editRecipe,
   } = useRecipes()
   const [importOpen, setImportOpen] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
@@ -90,6 +91,7 @@ function RecipesPage() {
         onClose={() => setSelectedRecipeId(null)}
         onDelete={removeRecipe}
         onUpdateTags={setRecipeTags}
+        onUpdateRecipe={editRecipe}
       />
 
       <ImportRecipeDialog

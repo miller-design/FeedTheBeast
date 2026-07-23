@@ -7,6 +7,7 @@ import type {
   ImportedRecipeDraft,
   Recipe,
   RecipeIngredient,
+  UpdateRecipeInput,
 } from '#/types/recipe'
 
 /**
@@ -114,6 +115,37 @@ export function createRecipeFromImport(draft: ImportedRecipeDraft): Recipe {
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/**
+ * Updates core recipe fields (name, servings, nutrition, ingredients, method).
+ *
+ * @param id - Recipe UUID
+ * @param input - Edited form values e.g. `{ name: 'Burritos', servings: 4, nutrition: {...}, ... }`
+ * @returns Updated recipe, or undefined if not found
+ *
+ * @example
+ * await updateRecipe(recipeId, { name: 'Nacho beef burritos', servings: 4, ... })
+ */
+export async function updateRecipe(
+  id: string,
+  input: UpdateRecipeInput,
+): Promise<Recipe | undefined> {
+  const existing = await getRecipeById(id)
+  if (!existing) return undefined
+
+  const updated: Recipe = {
+    ...existing,
+    name: input.name.trim(),
+    servings: input.servings,
+    ingredients: mapIngredients(input.ingredients),
+    instructions: input.instructions.map((step) => step.trim()).filter(Boolean),
+    nutrition: input.nutrition,
+    updatedAt: new Date().toISOString(),
+  }
+
+  await saveRecipe(updated)
+  return updated
 }
 
 /**

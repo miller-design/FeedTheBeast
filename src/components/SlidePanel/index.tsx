@@ -4,6 +4,8 @@ import clsx from 'clsx'
 import type { SlidePanelProps } from './types'
 import styles from './styles.module.css'
 
+const EXIT_ANIMATION_MS = 400
+
 /**
  * Right-side slide-in panel with backdrop, used in place of centred modals.
  *
@@ -31,14 +33,30 @@ const SlidePanel = ({
   footer,
   children,
 }: SlidePanelProps) => {
+  const [mounted, setMounted] = useState(false)
   const [entered, setEntered] = useState(false)
   const generatedId = useId()
   const headingId = titleId ?? generatedId
 
   useEffect(() => {
+    if (!open) return
+    setMounted(true)
+  }, [open])
+
+  useEffect(() => {
+    if (!mounted) return
+
     if (!open) {
       setEntered(false)
-      return
+
+      const exitTimer = window.setTimeout(() => {
+        setMounted(false)
+        document.body.style.overflow = ''
+      }, EXIT_ANIMATION_MS)
+
+      return () => {
+        window.clearTimeout(exitTimer)
+      }
     }
 
     const frame = requestAnimationFrame(() => setEntered(true))
@@ -46,6 +64,8 @@ const SlidePanel = ({
 
     /**
      * Closes the panel when the user presses Escape.
+     *
+     * @param event - Native keyboard event from the document, for example pressing `Escape`
      */
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -57,19 +77,24 @@ const SlidePanel = ({
 
     return () => {
       cancelAnimationFrame(frame)
-      document.body.style.overflow = ''
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open, onClose])
+  }, [mounted, open, onClose])
 
-  if (!open) return null
+  useEffect(() => {
+    if (mounted) return
+    document.body.style.overflow = ''
+  }, [mounted])
+
+  if (!mounted) return null
 
   return (
-    <div
-      className={clsx(styles.overlay, entered && styles.overlayVisible)}
-      onClick={onClose}
-      role="presentation"
-    >
+    <>
+      <div
+        className={clsx(styles.overlay, entered && styles.overlayVisible)}
+        onClick={onClose}
+        role="presentation"
+      />
       <aside
         className={clsx(
           styles.panel,
@@ -102,7 +127,7 @@ const SlidePanel = ({
 
         {footer && <footer className={styles.footer}>{footer}</footer>}
       </aside>
-    </div>
+    </>
   )
 }
 

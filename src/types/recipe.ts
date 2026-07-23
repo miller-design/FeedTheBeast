@@ -63,3 +63,12 @@ export type CreateRecipeInput = {
   nutrition: RecipeNutrition
   tags: RecipeTag[]
 }
+
+/** Form values for editing an existing recipe */
+export type UpdateRecipeInput = {
+  name: string
+  servings: number
+  ingredients: string[]
+  instructions: string[]
+  nutrition: RecipeNutrition
+}

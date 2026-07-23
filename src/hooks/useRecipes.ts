@@ -7,10 +7,11 @@ import {
   deleteRecipe,
   getAllRecipes,
   saveRecipe,
+  updateRecipe,
   updateRecipeTags,
 } from '#/lib/db/recipes'
 import type { RecipeTag } from '#/lib/recipe-tags'
-import type { CreateRecipeInput, ImportedRecipeDraft } from '#/types/recipe'
+import type { CreateRecipeInput, ImportedRecipeDraft, UpdateRecipeInput } from '#/types/recipe'
 
 /**
  * Hook for managing the recipe library with live Dexie updates.
@@ -52,6 +53,16 @@ export function useRecipes() {
   )
 
   /**
+   * Updates editable recipe fields from the detail panel.
+   *
+   * @param id - Recipe UUID
+   * @param input - Edited name, servings, nutrition, ingredients, and method
+   */
+  const editRecipe = useCallback(async (id: string, input: UpdateRecipeInput) => {
+    await updateRecipe(id, input)
+  }, [])
+
+  /**
    * Updates meal-type tags on a recipe (manual backfill / edits).
    *
    * @param id - Recipe UUID
@@ -75,6 +86,7 @@ export function useRecipes() {
     loading,
     addRecipe,
     addImportedRecipe,
+    editRecipe,
     setRecipeTags,
     removeRecipe,
   }

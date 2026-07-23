@@ -5,6 +5,7 @@ import {
   createRecipeFromImport,
   createRecipeFromInput,
   deleteRecipe,
+  findRecipeBySourceUrl,
   getAllRecipes,
   saveRecipe,
   updateRecipe,
@@ -38,19 +39,37 @@ export function useRecipes() {
   }, [])
 
   /**
-   * Saves an imported recipe draft.
+   * Saves an imported recipe draft unless the source URL already exists.
    *
    * @param draft - Parsed URL import data
-   * @returns New recipe ID
+   * @returns New recipe ID, or existing recipe ID when duplicate
+   * @throws Error when the same source URL is already in the library
    */
   const addImportedRecipe = useCallback(
     async (draft: ImportedRecipeDraft): Promise<string> => {
+      if (draft.sourceUrl) {
+        const existing = await findRecipeBySourceUrl(draft.sourceUrl)
+        if (existing) {
+          throw new Error(`Already in your library: ${existing.name}`)
+        }
+      }
+
       const recipe = createRecipeFromImport(draft)
       await saveRecipe(recipe)
       return recipe.id
     },
     [],
   )
+
+  /**
+   * Looks up a recipe previously imported from the same URL.
+   *
+   * @param sourceUrl - Recipe page URL
+   * @returns Existing recipe, if any
+   */
+  const getImportedRecipeByUrl = useCallback(async (sourceUrl: string) => {
+    return findRecipeBySourceUrl(sourceUrl)
+  }, [])
 
   /**
    * Updates editable recipe fields from the detail panel.
@@ -86,6 +105,7 @@ export function useRecipes() {
     loading,
     addRecipe,
     addImportedRecipe,
+    getImportedRecipeByUrl,
     editRecipe,
     setRecipeTags,
     removeRecipe,

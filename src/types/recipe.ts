@@ -41,7 +41,8 @@ export type ImportedRecipeDraft = {
   name: string
   description?: string
   imageUrl?: string
-  sourceUrl: string
+  /** Original page URL when known; omitted for anonymous JSON-LD pastes */
+  sourceUrl?: string
   sourceSite?: string
   servings: number
   prepTimeMinutes?: number

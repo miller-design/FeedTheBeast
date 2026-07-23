@@ -4,6 +4,41 @@ import type { ImportedRecipeDraft, RecipeNutrition } from '#/types/recipe'
 type JsonLdNode = Record<string, unknown>
 
 /**
+ * Returns true when a JSON-LD node represents a schema.org Recipe.
+ *
+ * @param node - Parsed JSON-LD object
+ * @returns Whether the node is a Recipe type
+ */
+function isRecipeNode(node: JsonLdNode): boolean {
+  const type = node['@type']
+  if (type === 'Recipe') return true
+  return Array.isArray(type) && type.includes('Recipe')
+}
+
+/**
+ * Normalises a recipe source URL for duplicate comparison.
+ * Strips tracking query params, trailing slashes, and www prefix.
+ *
+ * @param url - Recipe page URL e.g. `"https://www.pinchofyum.com/granola/?utm_source=x"`
+ * @returns Canonical comparison key e.g. `"https://pinchofyum.com/granola"`
+ *
+ * @example
+ * normalizeRecipeSourceUrl('https://www.pinchofyum.com/granola/')
+ */
+export function normalizeRecipeSourceUrl(url: string): string {
+  try {
+    const parsed = new URL(url.trim())
+    parsed.hash = ''
+    parsed.search = ''
+    const host = parsed.hostname.replace(/^www\./i, '').toLowerCase()
+    const path = parsed.pathname.replace(/\/+$/, '') || '/'
+    return `${parsed.protocol}//${host}${path}`.toLowerCase()
+  } catch {
+    return url.trim().toLowerCase()
+  }
+}
+
+/**
  * Parses an ISO 8601 duration string (e.g. PT30M) to minutes.
  *
  * @param duration - ISO duration string from schema.org
@@ -121,7 +156,7 @@ export function findRecipeInJsonLd(data: unknown): JsonLdNode | null {
 
   const node = data as JsonLdNode
 
-  if (node['@type'] === 'Recipe') return node
+  if (isRecipeNode(node)) return node
 
   if (Array.isArray(data)) {
     for (const item of data) {
@@ -133,7 +168,7 @@ export function findRecipeInJsonLd(data: unknown): JsonLdNode | null {
   const graph = node['@graph']
   if (Array.isArray(graph)) {
     for (const item of graph) {
-      if (item && typeof item === 'object' && (item as JsonLdNode)['@type'] === 'Recipe') {
+      if (item && typeof item === 'object' && isRecipeNode(item as JsonLdNode)) {
         return item as JsonLdNode
       }
     }
@@ -186,6 +221,15 @@ export function detectSourceSite(url: string): string | undefined {
       'budgetbytes.com': 'Budget Bytes',
       'cookieandkate.com': 'Cookie and Kate',
       'kingarthurbaking.com': 'King Arthur Baking',
+      'pinchofyum.com': 'Pinch of Yum',
+      'recipetineats.com': 'RecipeTin Eats',
+      'simplyrecipes.com': 'Simply Recipes',
+      'gimmesomeoven.com': 'Gimme Some Oven',
+      'foodnetwork.com': 'Food Network',
+      'onceuponachef.com': 'Once Upon a Chef',
+      'thepioneerwoman.com': 'The Pioneer Woman',
+      'theseasonedmom.com': 'The Seasoned Mom',
+      'food.com': 'Food.com',
     }
 
     return sites[hostname]
@@ -195,15 +239,37 @@ export function detectSourceSite(url: string): string | undefined {
 }
 
 /**
+ * Pulls a page URL from a Recipe JSON-LD node when the user did not supply one.
+ *
+ * @param recipeNode - Parsed Recipe object from JSON-LD
+ * @returns HTTP(S) URL if present on the node
+ */
+function extractUrlFromRecipeNode(recipeNode: JsonLdNode): string | undefined {
+  const candidates = [recipeNode.url, recipeNode['@id'], recipeNode.mainEntityOfPage]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) {
+      return candidate
+    }
+    if (candidate && typeof candidate === 'object' && '@id' in candidate) {
+      const id = String((candidate as JsonLdNode)['@id'])
+      if (/^https?:\/\//i.test(id)) return id
+    }
+  }
+
+  return undefined
+}
+
+/**
  * Converts a schema.org Recipe JSON-LD node to an import draft.
  *
  * @param recipeNode - Parsed Recipe object from JSON-LD
- * @param sourceUrl - Original page URL
+ * @param sourceUrl - Optional original page URL
  * @returns Import draft ready for user review
  */
 export function mapJsonLdToRecipeDraft(
   recipeNode: JsonLdNode,
-  sourceUrl: string,
+  sourceUrl?: string,
 ): ImportedRecipeDraft {
   const image = recipeNode.image
   let imageUrl: string | undefined
@@ -221,6 +287,8 @@ export function mapJsonLdToRecipeDraft(
       ? (recipeNode.nutrition as JsonLdNode)
       : undefined
 
+  const resolvedUrl = sourceUrl?.trim() || extractUrlFromRecipeNode(recipeNode)
+
   return {
     name: String(recipeNode.name ?? 'Imported recipe'),
     description:
@@ -228,8 +296,8 @@ export function mapJsonLdToRecipeDraft(
         ? recipeNode.description
         : undefined,
     imageUrl,
-    sourceUrl,
-    sourceSite: detectSourceSite(sourceUrl),
+    sourceUrl: resolvedUrl,
+    sourceSite: resolvedUrl ? detectSourceSite(resolvedUrl) : undefined,
     servings: parseServings(recipeNode.recipeYield),
     prepTimeMinutes: parseDurationToMinutes(recipeNode.prepTime),
     cookTimeMinutes: parseDurationToMinutes(recipeNode.cookTime),
@@ -257,6 +325,57 @@ export function parseRecipeFromHtml(
   const jsonLdBlocks = extractJsonLdFromHtml(html)
 
   for (const block of jsonLdBlocks) {
+    const recipeNode = findRecipeInJsonLd(block)
+    if (recipeNode) {
+      return mapJsonLdToRecipeDraft(recipeNode, sourceUrl)
+    }
+  }
+
+  return null
+}
+
+/**
+ * Parses a manually pasted JSON-LD blob (or a full `<script type="application/ld+json">` tag).
+ *
+ * @param raw - Pasted JSON, script tag, or HTML snippet containing JSON-LD
+ * @param sourceUrl - Optional page URL for source attribution and duplicate checks
+ * @returns Import draft or null if no Recipe node found
+ *
+ * @example
+ * parseRecipeFromJsonLdPaste('{"@type":"Recipe","name":"Granola",...}', 'https://...')
+ */
+export function parseRecipeFromJsonLdPaste(
+  raw: string,
+  sourceUrl?: string,
+): ImportedRecipeDraft | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+
+  const blocks: unknown[] = []
+
+  if (/application\/ld\+json/i.test(trimmed) || /<script[\s>]/i.test(trimmed)) {
+    const html = /<script[\s>]/i.test(trimmed)
+      ? trimmed
+      : `<script type="application/ld+json">${trimmed}</script>`
+    blocks.push(...extractJsonLdFromHtml(html))
+  }
+
+  if (blocks.length === 0) {
+    try {
+      blocks.push(JSON.parse(trimmed))
+    } catch {
+      const start = trimmed.indexOf('{')
+      const end = trimmed.lastIndexOf('}')
+      if (start < 0 || end <= start) return null
+      try {
+        blocks.push(JSON.parse(trimmed.slice(start, end + 1)))
+      } catch {
+        return null
+      }
+    }
+  }
+
+  for (const block of blocks) {
     const recipeNode = findRecipeInJsonLd(block)
     if (recipeNode) {
       return mapJsonLdToRecipeDraft(recipeNode, sourceUrl)

@@ -14,11 +14,16 @@ import styles from './styles.module.css'
  * <Header />
  */
 const Header = () => {
-  const { configured, isLoggedIn, user, syncLabel, login, logout } = useCloudAuth()
+  const { configured, isLoggedIn, user, syncLabel, login, logout } =
+    useCloudAuth()
   const { profile } = useUserProfile()
 
   const accountLabel =
-    profile?.displayName || profile?.username || user.email || user.name || 'Account'
+    profile?.displayName ||
+    profile?.username ||
+    user.email ||
+    user.name ||
+    'Account'
 
   return (
     <header className={styles.container}>
@@ -29,8 +34,14 @@ const Header = () => {
         <div className={styles.actions}>
           {configured && isLoggedIn ? (
             <>
-              {syncLabel ? <span className={styles.sync}>{syncLabel}</span> : null}
-              <Link to="/account" className={styles.accountLink} title={user.email ?? undefined}>
+              {syncLabel ? (
+                <span className={styles.sync}>{syncLabel}</span>
+              ) : null}
+              <Link
+                to="/account"
+                className={styles.accountLink}
+                title={user.email ?? undefined}
+              >
                 {accountLabel}
               </Link>
               <button
@@ -42,7 +53,11 @@ const Header = () => {
               </button>
             </>
           ) : configured ? (
-            <button type="button" className={styles.authButton} onClick={() => void login()}>
+            <button
+              type="button"
+              className={styles.authButton}
+              onClick={() => void login()}
+            >
               Sign in
             </button>
           ) : null}

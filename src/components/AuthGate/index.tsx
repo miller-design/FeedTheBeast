@@ -99,7 +99,8 @@ const AuthGate = ({ children, allowPublic = false }: AuthGateProps) => {
       title="Sign in"
       description={
         <p>
-          Create an account or sign in to sync meal plans and recipes across your devices.
+          Create an account or sign in to sync meal plans and recipes across
+          your devices.
         </p>
       }
       actions={

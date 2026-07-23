@@ -1,4 +1,5 @@
 import { createId } from '#/lib/meal-plan-factory'
+import { normalizeRecipeSourceUrl } from '#/lib/recipe-import'
 import { db } from '#/lib/db/index'
 import { normalizeRecipeTags, type RecipeTag } from '#/lib/recipe-tags'
 import type { FoodEntry } from '#/types/meal-plan'
@@ -27,6 +28,28 @@ export async function getAllRecipes(): Promise<Recipe[]> {
  */
 export async function getRecipeById(id: string): Promise<Recipe | undefined> {
   return db.recipes.get(id)
+}
+
+/**
+ * Finds an existing recipe imported from the same source URL.
+ *
+ * @param sourceUrl - Recipe page URL (raw or normalised)
+ * @returns Matching recipe, or undefined if not imported before
+ *
+ * @example
+ * await findRecipeBySourceUrl('https://pinchofyum.com/granola-bars')
+ */
+export async function findRecipeBySourceUrl(
+  sourceUrl: string,
+): Promise<Recipe | undefined> {
+  const normalized = normalizeRecipeSourceUrl(sourceUrl)
+  const recipes = await db.recipes.toArray()
+
+  return recipes.find(
+    (recipe) =>
+      recipe.sourceUrl &&
+      normalizeRecipeSourceUrl(recipe.sourceUrl) === normalized,
+  )
 }
 
 /**

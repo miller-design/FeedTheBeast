@@ -51,13 +51,30 @@ export const importRecipeFromUrl = createServerFn({ method: 'POST' })
       }
 
       const html = await response.text()
+
+      if (/access issue|support@people\.inc/i.test(html)) {
+        return {
+          success: false,
+          error:
+            'This site blocked our import request (Serious Eats / People Inc). Try Pinch of Yum, BBC Good Food, RecipeTin Eats, or King Arthur instead.',
+        }
+      }
+
+      if (/just a moment|cloudflare|cf-browser-verification/i.test(html)) {
+        return {
+          success: false,
+          error:
+            'This site blocked automated access (often Cloudflare). Try Pinch of Yum, BBC Good Food, RecipeTin Eats, or King Arthur instead.',
+        }
+      }
+
       const recipe = parseRecipeFromHtml(html, url)
 
       if (!recipe) {
         return {
           success: false,
           error:
-            'No recipe data found. The site may not use schema.org markup. Try Serious Eats, BBC Good Food, or AllRecipes.',
+            'No recipe data found. The page may not include schema.org JSON-LD markup, or may only expose it to browsers. Try Pinch of Yum, BBC Good Food, RecipeTin Eats, King Arthur, Cookie and Kate, or Simply Recipes.',
         }
       }
 

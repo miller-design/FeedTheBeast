@@ -46,7 +46,7 @@ const RecipeEmptyState = ({ onNewRecipe, onImportUrl }: RecipeEmptyStateProps) =
             + New recipe
           </button>
           <button type="button" className={styles.linkBtn} onClick={onImportUrl}>
-            Import from URL
+            Import recipe
           </button>
         </div>
       </section>

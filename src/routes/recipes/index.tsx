@@ -21,6 +21,7 @@ function RecipesPage() {
     loading,
     addRecipe,
     addImportedRecipe,
+    getImportedRecipeByUrl,
     removeRecipe,
     setRecipeTags,
     editRecipe,
@@ -50,7 +51,7 @@ function RecipesPage() {
               className={workspaceStyles.linkBtn}
               onClick={() => setImportOpen(true)}
             >
-              Import from URL
+              Import recipe
             </button>
             <button
               type="button"
@@ -98,6 +99,11 @@ function RecipesPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onSave={addImportedRecipe}
+        onCheckDuplicate={async (sourceUrl) => {
+          const existing = await getImportedRecipeByUrl(sourceUrl)
+          return existing ? { id: existing.id, name: existing.name } : undefined
+        }}
+        onOpenExisting={(recipeId) => setSelectedRecipeId(recipeId)}
       />
 
       <NewRecipeDialog

@@ -60,6 +60,13 @@ export class FeedTheBeastDB extends Dexie {
         await backfillRecipeTags(tx)
       })
 
+    this.version(6).stores({
+      mealPlans: 'id, slug, name, createdAt, updatedAt',
+      savedMeals: 'id, name, createdAt',
+      recipes: 'id, name, sourceSite, sourceUrl, createdAt, updatedAt, *tags',
+      profiles: 'id, username, updatedAt',
+    })
+
     const databaseUrl = import.meta.env.VITE_DEXIE_CLOUD_URL ?? ''
     if (typeof window !== 'undefined' && databaseUrl.trim()) {
       this.cloud.configure({

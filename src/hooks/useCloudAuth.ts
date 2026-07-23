@@ -27,13 +27,14 @@ const defaultUser = {
 export function useCloudAuth() {
   const configured = isCloudConfigured()
   const user = useObservable(() => db.cloud.currentUser, [], defaultUser)
-  const syncState = useObservable(
-    () => db.cloud.syncState,
-    [],
-    { status: 'not-started', phase: 'initial' } as SyncState,
-  )
+  const syncState = useObservable(() => db.cloud.syncState, [], {
+    status: 'not-started',
+    phase: 'initial',
+  } as SyncState)
 
-  const isLoggedIn = Boolean(user.isLoggedIn && user.userId !== UNAUTHORIZED_USER_ID)
+  const isLoggedIn = Boolean(
+    user.isLoggedIn && user.userId !== UNAUTHORIZED_USER_ID,
+  )
 
   useEffect(() => {
     if (!configured || !isLoggedIn) return
@@ -82,6 +83,7 @@ function syncStatusLabel(state: SyncState | undefined): string {
   if (state.phase === 'error' || state.status === 'error') return 'Sync error'
   if (state.phase === 'pushing' || state.phase === 'pulling') return 'Syncing…'
   if (state.phase === 'in-sync') return 'Synced'
-  if (state.status === 'connecting' || state.status === 'connected') return 'Connected'
+  if (state.status === 'connecting' || state.status === 'connected')
+    return 'Connected'
   return ''
 }

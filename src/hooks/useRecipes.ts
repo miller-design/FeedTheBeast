@@ -100,6 +100,18 @@ export function useRecipes() {
     await deleteRecipe(id)
   }, [])
 
+  /**
+   * Deletes multiple recipes from the library in one go.
+   *
+   * @param ids - Recipe UUIDs to delete
+   *
+   * @example
+   * await removeRecipes(['uuid-1', 'uuid-2'])
+   */
+  const removeRecipes = useCallback(async (ids: string[]) => {
+    await Promise.all(ids.map((id) => deleteRecipe(id)))
+  }, [])
+
   return {
     recipes: recipes ?? [],
     loading,
@@ -109,5 +121,6 @@ export function useRecipes() {
     editRecipe,
     setRecipeTags,
     removeRecipe,
+    removeRecipes,
   }
 }

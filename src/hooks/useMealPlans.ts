@@ -47,10 +47,23 @@ export function useMealPlans() {
     await deleteMealPlan(id)
   }, [])
 
+  /**
+   * Deletes multiple plans in one go. The live query refreshes automatically.
+   *
+   * @param ids - Plan UUIDs to delete
+   *
+   * @example
+   * await removePlans(['uuid-1', 'uuid-2'])
+   */
+  const removePlans = useCallback(async (ids: string[]) => {
+    await Promise.all(ids.map((id) => deleteMealPlan(id)))
+  }, [])
+
   return {
     plans: plans ?? [],
     loading,
     createPlan,
     removePlan,
+    removePlans,
   }
 }

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDraggable } from '@dnd-kit/core'
 import clsx from 'clsx'
 
@@ -20,6 +21,19 @@ import styles from './styles.module.css'
 type Tab = 'foods' | 'recipes'
 
 type CalorieFilter = 'all' | 'under300' | '300to500' | 'over500'
+
+/** Floating cursor-follow preview for a recipe with an image */
+type RecipeHoverPreview = {
+  imageUrl: string
+  name: string
+  x: number
+  y: number
+}
+
+const PREVIEW_OFFSET_X = 16
+const PREVIEW_OFFSET_Y = 16
+const PREVIEW_WIDTH = 220
+const PREVIEW_HEIGHT = 124
 
 const SEARCH_DEBOUNCE_MS = 350
 
@@ -103,6 +117,8 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
   const [results, setResults] = useState<OffSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hoverPreview, setHoverPreview] = useState<RecipeHoverPreview | null>(null)
+  const finePointerRef = useRef(true)
 
   const filteredRecipes = useMemo(
     () => filterRecipes(recipes, recipeQuery, calorieFilter, tagFilters),
@@ -111,6 +127,64 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
 
   const hasActiveRecipeFilters =
     recipeQuery.length > 0 || calorieFilter !== 'all' || tagFilters.length > 0
+
+  /**
+   * Enables cursor-follow previews only on fine pointers (mouse / trackpad).
+   */
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: fine)')
+
+    /**
+     * Syncs the fine-pointer flag from the media query.
+     */
+    function syncPointer() {
+      finePointerRef.current = media.matches
+      if (!media.matches) setHoverPreview(null)
+    }
+
+    syncPointer()
+    media.addEventListener('change', syncPointer)
+    return () => media.removeEventListener('change', syncPointer)
+  }, [])
+
+  /**
+   * Clears the hover preview when leaving the recipes tab.
+   */
+  useEffect(() => {
+    if (tab !== 'recipes') setHoverPreview(null)
+  }, [tab])
+
+  /**
+   * Positions the floating preview near the cursor, clamped to the viewport.
+   *
+   * @param clientX - Pointer X from the event e.g. `420`
+   * @param clientY - Pointer Y from the event e.g. `280`
+   * @param imageUrl - Recipe image URL to show
+   * @param name - Recipe name used for the preview alt text
+   *
+   * @example
+   * showRecipePreview(420, 280, recipe.imageUrl, recipe.name)
+   */
+  const showRecipePreview = useCallback(
+    (clientX: number, clientY: number, imageUrl: string, name: string) => {
+      if (!finePointerRef.current) return
+
+      const maxX = window.innerWidth - PREVIEW_WIDTH - 8
+      const maxY = window.innerHeight - PREVIEW_HEIGHT - 8
+      const x = Math.min(Math.max(8, clientX + PREVIEW_OFFSET_X), maxX)
+      const y = Math.min(Math.max(8, clientY + PREVIEW_OFFSET_Y), maxY)
+
+      setHoverPreview({ imageUrl, name, x, y })
+    },
+    [],
+  )
+
+  /**
+   * Hides the floating recipe image preview.
+   */
+  const hideRecipePreview = useCallback(() => {
+    setHoverPreview(null)
+  }, [])
 
   /**
    * Debounced search — runs automatically as the user types (min 2 chars).
@@ -342,7 +416,12 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
               ) : (
                 <ul className={styles.list}>
                   {filteredRecipes.map((recipe) => (
-                    <DraggableRecipe key={recipe.id} recipe={recipe} />
+                    <DraggableRecipe
+                      key={recipe.id}
+                      recipe={recipe}
+                      onPreviewMove={showRecipePreview}
+                      onPreviewHide={hideRecipePreview}
+                    />
                   ))}
                 </ul>
               )}
@@ -350,6 +429,26 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
           )}
         </div>
       )}
+
+      {hoverPreview &&
+        createPortal(
+          <div
+            className={styles.hoverPreview}
+            style={{
+              transform: `translate3d(${hoverPreview.x}px, ${hoverPreview.y}px, 0)`,
+            }}
+            aria-hidden
+          >
+            <img
+              src={hoverPreview.imageUrl}
+              alt=""
+              className={styles.hoverPreviewImage}
+              decoding="async"
+            />
+            <span className={styles.hoverPreviewLabel}>{hoverPreview.name}</span>
+          </div>,
+          document.body,
+        )}
     </aside>
   )
 }
@@ -404,11 +503,47 @@ function DraggableFood({ product }: DraggableFoodProps) {
 
 type DraggableRecipeProps = {
   recipe: Recipe
+  /**
+   * Shows / repositions the floating image preview while the pointer
+   * moves over a recipe that has `imageUrl`.
+   *
+   * @param clientX - Pointer X e.g. `420`
+   * @param clientY - Pointer Y e.g. `280`
+   * @param imageUrl - Recipe image URL
+   * @param name - Recipe display name
+   */
+  onPreviewMove: (
+    clientX: number,
+    clientY: number,
+    imageUrl: string,
+    name: string,
+  ) => void
+  /** Hides the floating image preview when the pointer leaves */
+  onPreviewHide: () => void
 }
 
-/** Draggable recipe from the user's library */
-function DraggableRecipe({ recipe }: DraggableRecipeProps) {
+/**
+ * Draggable recipe from the user's library. When the recipe has an image,
+ * hovering with a fine pointer shows a cursor-follow preview.
+ *
+ * @param props.recipe - Library recipe to drag into a meal slot
+ * @param props.onPreviewMove - Updates the shared hover preview position/image
+ * @param props.onPreviewHide - Clears the shared hover preview
+ *
+ * @example
+ * <DraggableRecipe
+ *   recipe={recipe}
+ *   onPreviewMove={showRecipePreview}
+ *   onPreviewHide={hideRecipePreview}
+ * />
+ */
+function DraggableRecipe({
+  recipe,
+  onPreviewMove,
+  onPreviewHide,
+}: DraggableRecipeProps) {
   const tags = recipeTags(recipe)
+  const imageUrl = recipe.imageUrl
 
   const { attributes, listeners, setNodeRef, isDragging } =
     useDraggable({
@@ -425,12 +560,29 @@ function DraggableRecipe({ recipe }: DraggableRecipeProps) {
       },
     })
 
+  useEffect(() => {
+    if (isDragging) onPreviewHide()
+  }, [isDragging, onPreviewHide])
+
+  /**
+   * Starts or updates the floating preview for recipes that have an image.
+   *
+   * @param event - Pointer event from the recipe row
+   */
+  function handlePointerMove(event: React.PointerEvent<HTMLLIElement>) {
+    if (!imageUrl || isDragging) return
+    onPreviewMove(event.clientX, event.clientY, imageUrl, recipe.name)
+  }
+
   return (
     <li
       ref={setNodeRef}
       className={clsx(styles.item, isDragging && styles.dragging)}
       {...listeners}
       {...attributes}
+      onPointerEnter={handlePointerMove}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={onPreviewHide}
     >
       <span className={styles.itemName}>{recipe.name}</span>
       {tags.length > 0 && (

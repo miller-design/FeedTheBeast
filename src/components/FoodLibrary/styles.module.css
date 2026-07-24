@@ -265,6 +265,45 @@
   color: var(--color-text-muted);
 }
 
+.hoverPreview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 80;
+  width: 13.75rem;
+  pointer-events: none;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.5rem;
+  background: var(--color-bg-elevated);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
+  will-change: transform;
+
+  @media (prefers-reduced-motion: reduce) {
+    will-change: auto;
+  }
+}
+
+.hoverPreviewImage {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--color-bg-inset);
+}
+
+.hoverPreviewLabel {
+  display: block;
+  padding: 0.45rem 0.6rem;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+  line-height: var(--lh-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (--bp-md) {
   .root {
     width: 22rem;

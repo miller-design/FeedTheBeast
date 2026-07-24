@@ -321,6 +321,18 @@ const RecipeDetailPanel = ({
       ) : (
         recipe && (
           <div className={styles.content}>
+            {recipe.imageUrl && (
+              <figure className={styles.hero}>
+                <img
+                  src={recipe.imageUrl}
+                  alt=""
+                  className={styles.heroImage}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
+            )}
+
             <section className={styles.section}>
               <RecipeTagPicker
                 value={recipeTags(recipe)}

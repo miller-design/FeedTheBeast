@@ -167,6 +167,18 @@ function PlanItemDetailContent({ selection }: PlanItemDetailContentProps) {
   if (recipe) {
     return (
       <div className={styles.content}>
+        {recipe.imageUrl && (
+          <figure className={recipeStyles.hero}>
+            <img
+              src={recipe.imageUrl}
+              alt=""
+              className={recipeStyles.heroImage}
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+        )}
+
         <NutritionSection
           title="In this meal"
           calories={item.calories}

@@ -12,6 +12,12 @@
   --grid-gutter: 0.5rem;
   --grid-margin: 2rem;
 
+  /*
+   * Sticky header: 1.5rem pad + 2rem control + 1.5rem pad + 1px border.
+   * Keep in sync with Header/styles.module.css padding and control heights.
+   */
+  --app-header-height: calc(5rem + 1px);
+
   /* Font Weights */
   --fw-regular: 400;
   --fw-medium: 500;

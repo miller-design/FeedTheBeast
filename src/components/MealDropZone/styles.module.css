@@ -1,6 +1,7 @@
 .root {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 7rem;
   padding: 0.75rem;
   border: 1px dashed var(--color-border-strong);

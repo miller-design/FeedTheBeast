@@ -1,4 +1,5 @@
 .root {
+  display: none;
   width: 14rem;
   flex-shrink: 0;
   padding: var(--sp-3) var(--sp-2);
@@ -59,8 +60,9 @@
   }
 }
 
-@media (--bp-md) {
+@media (--bp-xl) {
   .root {
+    display: block;
     width: 16rem;
   }
 }

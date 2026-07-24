@@ -3,19 +3,20 @@ import { createPortal } from 'react-dom'
 import { useDraggable } from '@dnd-kit/core'
 import clsx from 'clsx'
 
+import { useMediaQuery } from '#/hooks/useMediaQuery'
 import { scaleFrom100g } from '#/lib/nutrition'
 import { DND_TYPES } from '#/lib/dnd'
 import {
   RECIPE_TAGS,
   RECIPE_TAG_LABELS,
   toggleRecipeTag,
-  type RecipeTag,
 } from '#/lib/recipe-tags'
+import type { RecipeTag } from '#/lib/recipe-tags'
 import { searchFoods } from '#/server/search-foods'
 import type { OffSearchResult } from '#/types/meal-plan'
 import type { Recipe } from '#/types/recipe'
 
-import type { FoodLibraryProps } from './types'
+import type { FoodLibraryProps, LibraryPlacePayload } from './types'
 import styles from './styles.module.css'
 
 type Tab = 'foods' | 'recipes'
@@ -101,14 +102,31 @@ function filterRecipes(
 
 /**
  * Right sidebar food library with draggable foods and recipes.
+ * Below `--bp-xl` it becomes a right-edge drawer with the same `0.4s ease`
+ * fade/slide as SlidePanel.
  *
  * @param props.recipes - User's recipe library
  * @param props.onManualFood - Opens manual food entry dialog
+ * @param props.onPlaceRequest - Tap-to-place handler for touch devices
+ * @param props.mobileOpen - Whether the mobile drawer is visible
+ * @param props.onMobileClose - Closes the mobile drawer
  *
  * @example
- * <FoodLibrary recipes={recipes} onManualFood={() => {}} />
+ * <FoodLibrary
+ *   recipes={recipes}
+ *   onManualFood={() => {}}
+ *   onPlaceRequest={handlePlace}
+ *   mobileOpen={libraryOpen}
+ *   onMobileClose={() => setLibraryOpen(false)}
+ * />
  */
-const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
+const FoodLibrary = ({
+  recipes,
+  onManualFood,
+  onPlaceRequest,
+  mobileOpen = false,
+  onMobileClose,
+}: FoodLibraryProps) => {
   const [tab, setTab] = useState<Tab>('foods')
   const [query, setQuery] = useState('')
   const [recipeQuery, setRecipeQuery] = useState('')
@@ -118,7 +136,10 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hoverPreview, setHoverPreview] = useState<RecipeHoverPreview | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [entered, setEntered] = useState(false)
   const finePointerRef = useRef(true)
+  const isDesktop = useMediaQuery('(min-width: 1280px)')
 
   const filteredRecipes = useMemo(
     () => filterRecipes(recipes, recipeQuery, calorieFilter, tagFilters),
@@ -127,6 +148,62 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
 
   const hasActiveRecipeFilters =
     recipeQuery.length > 0 || calorieFilter !== 'all' || tagFilters.length > 0
+
+  const drawerOpen = isDesktop || mobileOpen
+
+  useEffect(() => {
+    if (isDesktop) {
+      setMounted(true)
+      setEntered(true)
+      return
+    }
+
+    if (!mobileOpen) return
+    setMounted(true)
+  }, [isDesktop, mobileOpen])
+
+  useEffect(() => {
+    if (isDesktop || !mounted) return
+
+    if (!mobileOpen) {
+      setEntered(false)
+
+      const exitTimer = window.setTimeout(() => {
+        setMounted(false)
+        document.body.style.overflow = ''
+      }, 400)
+
+      return () => {
+        window.clearTimeout(exitTimer)
+      }
+    }
+
+    const frame = requestAnimationFrame(() => setEntered(true))
+    document.body.style.overflow = 'hidden'
+
+    /**
+     * Closes the library drawer when the user presses Escape.
+     *
+     * @param event - Native keyboard event from the document
+     */
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onMobileClose?.()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isDesktop, mounted, mobileOpen, onMobileClose])
+
+  useEffect(() => {
+    if (isDesktop || mounted) return
+    document.body.style.overflow = ''
+  }, [isDesktop, mounted])
 
   /**
    * Enables cursor-follow previews only on fine pointers (mouse / trackpad).
@@ -209,7 +286,7 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
 
           if (response.success) {
             setResults(response.results)
-            setError(response.results.length === 0 ? 'No products found.' : null)
+            setError(null)
           } else {
             setResults([])
             setError(response.error)
@@ -244,9 +321,39 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
     setTagFilters([])
   }
 
+  if (!mounted && !isDesktop) return null
+
+  const showOverlay = !isDesktop && mounted
+
   return (
-    <aside className={styles.root}>
-      <p className={styles.label}>Food Library</p>
+    <>
+      {showOverlay && (
+        <div
+          className={clsx(styles.overlay, entered && styles.overlayVisible)}
+          onClick={() => onMobileClose?.()}
+          role="presentation"
+        />
+      )}
+
+      <aside
+        className={clsx(
+          styles.root,
+          (isDesktop || (drawerOpen && entered)) && styles.rootVisible,
+        )}
+        aria-label="Food library"
+        aria-hidden={!isDesktop && !entered ? true : undefined}
+      >
+        <div className={styles.drawerHeader}>
+          <p className={styles.label}>Food Library</p>
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={() => onMobileClose?.()}
+            aria-label="Close food library"
+          >
+            ×
+          </button>
+        </div>
 
       <div className={styles.tabs} role="tablist" aria-label="Food library tabs">
         <button
@@ -307,11 +414,20 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
           {!searching && !error && query.trim().length < 2 && (
             <p className={styles.hint}>Type at least 2 characters to search Open Food Facts</p>
           )}
+          {!searching && !error && query.trim().length >= 2 && results.length === 0 && (
+            <p className={styles.hint}>
+              No matching foods. Try a different search or add a manual food.
+            </p>
+          )}
 
           {!searching && !error && results.length > 0 && (
             <ul className={styles.list}>
               {results.map((product) => (
-                <DraggableFood key={product.barcode} product={product} />
+                <DraggableFood
+                  key={product.barcode}
+                  product={product}
+                  onPlaceRequest={onPlaceRequest}
+                />
               ))}
             </ul>
           )}
@@ -421,6 +537,7 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
                       recipe={recipe}
                       onPreviewMove={showRecipePreview}
                       onPreviewHide={hideRecipePreview}
+                      onPlaceRequest={onPlaceRequest}
                     />
                   ))}
                 </ul>
@@ -449,16 +566,26 @@ const FoodLibrary = ({ recipes, onManualFood }: FoodLibraryProps) => {
           </div>,
           document.body,
         )}
-    </aside>
+      </aside>
+    </>
   )
 }
 
 type DraggableFoodProps = {
   product: OffSearchResult
+  onPlaceRequest?: (payload: LibraryPlacePayload) => void
 }
 
-/** Draggable food product from Open Food Facts search */
-function DraggableFood({ product }: DraggableFoodProps) {
+/**
+ * Draggable food product from Open Food Facts search, with a tap-to-place add button.
+ *
+ * @param props.product - Open Food Facts search result
+ * @param props.onPlaceRequest - Starts tap-to-place mode for this food
+ *
+ * @example
+ * <DraggableFood product={product} onPlaceRequest={handlePlace} />
+ */
+function DraggableFood({ product, onPlaceRequest }: DraggableFoodProps) {
   const grams = product.servingSizeG ?? 100
   const scaled = scaleFrom100g(
     {
@@ -470,20 +597,21 @@ function DraggableFood({ product }: DraggableFoodProps) {
     grams,
   )
 
-  const { attributes, listeners, setNodeRef, isDragging } =
-    useDraggable({
-      id: `library-food-${product.barcode}`,
-      data: {
-        type: DND_TYPES.LIBRARY_FOOD,
-        name: product.brand ? `${product.name} (${product.brand})` : product.name,
-        ...scaled,
-        quantity: grams,
-        unit: 'g',
-        source: 'openfoodfacts' as const,
-        barcode: product.barcode,
-        servingSizeG: grams,
-      },
-    })
+  const placeData: LibraryPlacePayload = {
+    type: DND_TYPES.LIBRARY_FOOD,
+    name: product.brand ? `${product.name} (${product.brand})` : product.name,
+    ...scaled,
+    quantity: grams,
+    unit: 'g',
+    source: 'openfoodfacts' as const,
+    barcode: product.barcode,
+    servingSizeG: grams,
+  }
+
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `library-food-${product.barcode}`,
+    data: placeData,
+  })
 
   return (
     <li
@@ -492,11 +620,27 @@ function DraggableFood({ product }: DraggableFoodProps) {
       {...listeners}
       {...attributes}
     >
-      <span className={styles.itemName}>{product.name}</span>
-      {product.brand && <span className={styles.itemBrand}>{product.brand}</span>}
-      <span className={styles.itemMeta}>
-        {scaled.calories} kcal · drag to add
-      </span>
+      <div className={styles.itemBody}>
+        <span className={styles.itemName}>{product.name}</span>
+        {product.brand && <span className={styles.itemBrand}>{product.brand}</span>}
+        <span className={styles.itemMeta}>
+          {scaled.calories} kcal · drag or tap +
+        </span>
+      </div>
+      {onPlaceRequest && (
+        <button
+          type="button"
+          className={styles.addBtn}
+          aria-label={`Add ${product.name} to a meal`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation()
+            onPlaceRequest(placeData)
+          }}
+        >
+          +
+        </button>
+      )}
     </li>
   )
 }
@@ -520,6 +664,7 @@ type DraggableRecipeProps = {
   ) => void
   /** Hides the floating image preview when the pointer leaves */
   onPreviewHide: () => void
+  onPlaceRequest?: (payload: LibraryPlacePayload) => void
 }
 
 /**
@@ -529,36 +674,40 @@ type DraggableRecipeProps = {
  * @param props.recipe - Library recipe to drag into a meal slot
  * @param props.onPreviewMove - Updates the shared hover preview position/image
  * @param props.onPreviewHide - Clears the shared hover preview
+ * @param props.onPlaceRequest - Starts tap-to-place mode for this recipe
  *
  * @example
  * <DraggableRecipe
  *   recipe={recipe}
  *   onPreviewMove={showRecipePreview}
  *   onPreviewHide={hideRecipePreview}
+ *   onPlaceRequest={handlePlace}
  * />
  */
 function DraggableRecipe({
   recipe,
   onPreviewMove,
   onPreviewHide,
+  onPlaceRequest,
 }: DraggableRecipeProps) {
   const tags = recipeTags(recipe)
   const imageUrl = recipe.imageUrl
 
-  const { attributes, listeners, setNodeRef, isDragging } =
-    useDraggable({
-      id: `library-recipe-${recipe.id}`,
-      data: {
-        type: DND_TYPES.LIBRARY_RECIPE,
-        recipeId: recipe.id,
-        name: recipe.name,
-        calories: recipe.nutrition.calories,
-        protein: recipe.nutrition.protein,
-        carbs: recipe.nutrition.carbs,
-        fat: recipe.nutrition.fat,
-        servings: 1,
-      },
-    })
+  const placeData: LibraryPlacePayload = {
+    type: DND_TYPES.LIBRARY_RECIPE,
+    recipeId: recipe.id,
+    name: recipe.name,
+    calories: recipe.nutrition.calories,
+    protein: recipe.nutrition.protein,
+    carbs: recipe.nutrition.carbs,
+    fat: recipe.nutrition.fat,
+    servings: 1,
+  }
+
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `library-recipe-${recipe.id}`,
+    data: placeData,
+  })
 
   useEffect(() => {
     if (isDragging) onPreviewHide()
@@ -584,15 +733,31 @@ function DraggableRecipe({
       onPointerMove={handlePointerMove}
       onPointerLeave={onPreviewHide}
     >
-      <span className={styles.itemName}>{recipe.name}</span>
-      {tags.length > 0 && (
-        <span className={styles.itemTags}>
-          {tags.map((tag) => RECIPE_TAG_LABELS[tag]).join(' · ')}
+      <div className={styles.itemBody}>
+        <span className={styles.itemName}>{recipe.name}</span>
+        {tags.length > 0 && (
+          <span className={styles.itemTags}>
+            {tags.map((tag) => RECIPE_TAG_LABELS[tag]).join(' · ')}
+          </span>
+        )}
+        <span className={styles.itemMeta}>
+          {recipe.nutrition.calories} kcal/serving · drag or tap +
         </span>
+      </div>
+      {onPlaceRequest && (
+        <button
+          type="button"
+          className={styles.addBtn}
+          aria-label={`Add ${recipe.name} to a meal`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation()
+            onPlaceRequest(placeData)
+          }}
+        >
+          +
+        </button>
       )}
-      <span className={styles.itemMeta}>
-        {recipe.nutrition.calories} kcal/serving · drag to add
-      </span>
     </li>
   )
 }

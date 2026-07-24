@@ -31,6 +31,7 @@ const FoodSearchModal = ({ open, onClose, onAdd }: FoodSearchModalProps) => {
   const [results, setResults] = useState<OffSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [hasSearched, setHasSearched] = useState(false)
 
   const [manualName, setManualName] = useState('')
   const [manualCalories, setManualCalories] = useState(0)
@@ -47,6 +48,7 @@ const FoodSearchModal = ({ open, onClose, onAdd }: FoodSearchModalProps) => {
     setQuery('')
     setResults([])
     setSearchError(null)
+    setHasSearched(false)
     setManualName('')
     setManualCalories(0)
     setManualProtein(0)
@@ -65,6 +67,7 @@ const FoodSearchModal = ({ open, onClose, onAdd }: FoodSearchModalProps) => {
 
     setSearching(true)
     setSearchError(null)
+    setHasSearched(true)
 
     try {
       const response = await searchFoods({ data: { query: query.trim() } })
@@ -76,11 +79,11 @@ const FoodSearchModal = ({ open, onClose, onAdd }: FoodSearchModalProps) => {
       }
 
       setResults(response.results)
-      if (response.results.length === 0) {
-        setSearchError('No products found. Try different search terms.')
-      }
+      setSearchError(null)
     } catch {
-      setSearchError('Search failed. Please try again in a moment.')
+      setSearchError(
+        'Couldn’t reach the food database. Check your connection and try again, or add a manual food.',
+      )
     } finally {
       setSearching(false)
     }
@@ -203,6 +206,14 @@ const FoodSearchModal = ({ open, onClose, onAdd }: FoodSearchModalProps) => {
           </form>
 
           {searchError && <p className={panelStyles.error}>{searchError}</p>}
+          {!searching &&
+            hasSearched &&
+            !searchError &&
+            results.length === 0 && (
+              <p className={panelStyles.hint}>
+                No matching foods. Try a different search or add a manual food.
+              </p>
+            )}
 
           <ul className={styles.results}>
             {results.map((product) => (

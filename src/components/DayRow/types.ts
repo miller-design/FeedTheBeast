@@ -8,4 +8,7 @@ export type DayRowProps = {
   onSelectItem?: (item: FoodEntry) => void
   onCalorieTargetChange: (target: number) => void
   onRemoveItem: (slotIndex: number, itemId: string) => void
+  placementActive?: boolean
+  onPlaceHere?: (slotIndex: number) => void
+  onRequestMove?: (slotIndex: number, item: FoodEntry) => void
 }

@@ -21,6 +21,17 @@
   background: var(--color-drop-active);
 }
 
+.placementTarget {
+  border-style: solid;
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg-elevated));
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg-elevated));
+  }
+}
+
 .header {
   display: flex;
   justify-content: space-between;

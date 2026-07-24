@@ -105,6 +105,7 @@ const SlidePanel = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
+        data-keep-selection=""
       >
         <header className={styles.header}>
           <div className={styles.headerText}>

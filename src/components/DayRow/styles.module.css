@@ -78,7 +78,11 @@
   & strong {
     font-family: ui-monospace, 'SF Mono', monospace;
     font-weight: var(--fw-semibold);
-    color: var(--color-text);
+    color: var(--color-target);
+
+    @media (--bp-xl) {
+      color: var(--color-text);
+    }
   }
 }
 

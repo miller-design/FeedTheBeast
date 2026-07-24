@@ -112,6 +112,12 @@ export async function searchOpenFoodFacts(
     throw new Error('Failed to search Open Food Facts')
   }
 
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    // OFF sometimes serves an HTML “temporarily unavailable” page with HTTP 200.
+    throw new Error('Open Food Facts is temporarily unavailable')
+  }
+
   const data = (await response.json()) as OffSearchResponse
   const products = data.products ?? []
 

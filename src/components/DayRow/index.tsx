@@ -13,6 +13,9 @@ import styles from './styles.module.css'
  * @param props.dayIndex - Index in the plan's days array
  * @param props.onCalorieTargetChange - Updates daily calorie target
  * @param props.onRemoveItem - Removes a food item from a slot
+ * @param props.placementActive - Whether tap-to-place is active for this day
+ * @param props.onPlaceHere - Completes placement into a slot
+ * @param props.onRequestMove - Starts move-via-tap for an existing item
  *
  * @example
  * <DayRow day={planDay} dayIndex={0} onCalorieTargetChange={...} onRemoveItem={...} />
@@ -25,6 +28,9 @@ const DayRow = ({
   onSelectItem,
   onCalorieTargetChange,
   onRemoveItem,
+  placementActive = false,
+  onPlaceHere,
+  onRequestMove,
 }: DayRowProps) => {
   return (
     <article className={styles.root}>
@@ -69,6 +75,9 @@ const DayRow = ({
             selectedItemId={selectedItemId}
             onSelectItem={onSelectItem}
             onRemoveItem={(itemId) => onRemoveItem(slotIndex, itemId)}
+            placementActive={placementActive}
+            onPlaceHere={() => onPlaceHere?.(slotIndex)}
+            onRequestMove={(item) => onRequestMove?.(slotIndex, item)}
           />
         ))}
       </div>

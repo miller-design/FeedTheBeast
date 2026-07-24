@@ -34,10 +34,22 @@ export const searchFoods = createServerFn({ method: 'POST' })
     try {
       const results = await searchOpenFoodFacts(query, data.pageSize ?? 20)
       return { success: true, results }
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : ''
+
+      if (message.includes('temporarily unavailable')) {
+        return {
+          success: false,
+          error:
+            'The food database is temporarily unavailable. Try again shortly, or add a manual food.',
+        }
+      }
+
       return {
         success: false,
-        error: 'Food search failed. Please try again in a moment.',
+        error:
+          'Couldn’t reach the food database. Check your connection and try again, or add a manual food.',
       }
     }
   })

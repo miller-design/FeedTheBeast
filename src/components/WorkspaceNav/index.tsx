@@ -3,7 +3,7 @@ import clsx from 'clsx'
 
 import styles from './styles.module.css'
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { label: 'Account', to: '/account' as const },
   { label: 'My Plans', to: '/' as const },
   { label: 'Recipes', to: '/recipes' as const },
@@ -15,7 +15,8 @@ type WorkspaceNavProps = {
 }
 
 /**
- * Left sidebar workspace navigation inspired by Nutricalc.
+ * Left sidebar workspace navigation. Hidden below `--bp-xl` in favour of
+ * the burger overlay (`MobileNavDrawer`).
  *
  * @param props.disabled - Renders items as disabled text instead of links
  *

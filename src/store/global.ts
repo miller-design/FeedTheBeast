@@ -8,3 +8,9 @@ import { atom } from 'jotai'
  */
 export const siteReadyAtom = atom(false)
 
+/**
+ * Whether the mobile workspace nav drawer (burger menu) is open.
+ * Used below `--bp-xl` where the persistent sidebar is hidden.
+ */
+export const mobileNavOpenAtom = atom(false)
+

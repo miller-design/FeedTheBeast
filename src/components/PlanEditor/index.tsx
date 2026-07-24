@@ -2,25 +2,26 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 
 import DayRow from '#/components/DayRow'
 import FoodLibrary from '#/components/FoodLibrary'
+import type { LibraryPlacePayload } from '#/components/FoodLibrary/types'
 import PlanItemDetailPanel from '#/components/PlanItemDetailPanel'
 import WorkspaceNav from '#/components/WorkspaceNav'
 import { getAllRecipes } from '#/lib/db/recipes'
 import { createId } from '#/lib/meal-plan-factory'
-import {
-  DND_TYPES,
-  parseMealSlotDropId,
-  type DragData,
-  type LibraryFoodDragData,
-  type LibraryRecipeDragData,
+import { DND_TYPES, parseMealSlotDropId } from '#/lib/dnd'
+import type {
+  DragData,
+  LibraryFoodDragData,
+  LibraryRecipeDragData,
+  MealItemDragData,
 } from '#/lib/dnd'
 import type { FoodEntry, MealPlan, PlanDay } from '#/types/meal-plan'
 import type { Recipe } from '#/types/recipe'
@@ -32,8 +33,12 @@ import workspaceStyles from '#/styles/workspace-page.module.css'
 import type { PlanEditorMode, PlanEditorProps } from './types'
 import styles from './styles.module.css'
 
+/** Pending tap-to-place payload (library add or meal-item move). */
+type PlacementPayload = LibraryPlacePayload | MealItemDragData
+
 /**
  * Nutricalc-style meal plan editor with drag-and-drop and food library sidebar.
+ * Supports mouse drag, touch long-press drag, and tap-to-place for smaller devices.
  *
  * @param props.plan - Current meal plan
  * @param props.saving - Whether a save is in progress
@@ -55,11 +60,16 @@ const PlanEditor = ({
   const [manualFoodOpen, setManualFoodOpen] = useState(false)
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [placement, setPlacement] = useState<PlacementPayload | null>(null)
 
   const isEditing = mode === 'edit'
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 220, tolerance: 8 },
+    }),
   )
 
   useEffect(() => {
@@ -71,12 +81,61 @@ const PlanEditor = ({
   }, [])
 
   /**
+   * Clears tap-to-place and use-mode item selection via Escape or an outside tap.
+   * Outside = anything not marked `data-keep-selection` (active meal cards, banner, detail panel).
+   */
+  useEffect(() => {
+    if (!placement && !selectedItemId) return
+
+    /**
+     * Drops the current placement and/or selected meal item.
+     */
+    function clearSelection() {
+      setPlacement(null)
+      setSelectedItemId(null)
+    }
+
+    /**
+     * Clears selection when the user presses Escape.
+     *
+     * @param event - Native keyboard event from the document
+     */
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        clearSelection()
+      }
+    }
+
+    /**
+     * Clears selection when the user taps/clicks outside an active card or related UI.
+     *
+     * @param event - Pointer event from the document
+     */
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-keep-selection]')) return
+      clearSelection()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('pointerdown', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [placement, selectedItemId])
+
+  /**
    * Clears sidebar selection when leaving use mode.
    *
    * @param nextMode - Mode being switched to
    */
   function switchMode(nextMode: PlanEditorMode) {
     setMode(nextMode)
+    setPlacement(null)
+    setLibraryOpen(false)
     if (nextMode === 'edit') {
       setSelectedItemId(null)
     }
@@ -120,8 +179,6 @@ const PlanEditor = ({
   const addItemToSlot = useCallback(
     (dayIndex: number, slotIndex: number, entry: FoodEntry) => {
       const day = localPlan.days[dayIndex]
-      if (!day) return
-
       const meals = [...day.meals]
       const slot = meals[slotIndex]
       meals[slotIndex] = { ...slot, items: [...slot.items, entry] }
@@ -140,8 +197,6 @@ const PlanEditor = ({
   const removeItemFromSlot = useCallback(
     (dayIndex: number, slotIndex: number, itemId: string) => {
       const day = localPlan.days[dayIndex]
-      if (!day) return
-
       const meals = [...day.meals]
       const slot = meals[slotIndex]
       meals[slotIndex] = {
@@ -171,11 +226,8 @@ const PlanEditor = ({
       toSlot: number,
     ) => {
       const sourceDay = localPlan.days[fromDay]
-      const targetDay = localPlan.days[toDay]
-      if (!sourceDay || !targetDay) return
-
       const sourceSlot = sourceDay.meals[fromSlot]
-      const item = sourceSlot?.items.find((i) => i.id === itemId)
+      const item = sourceSlot.items.find((i) => i.id === itemId)
       if (!item) return
 
       if (fromDay === toDay && fromSlot === toSlot) return
@@ -246,9 +298,10 @@ const PlanEditor = ({
   }
 
   /**
-   * Handles drag start — stores active drag data for overlay.
+   * Handles drag start — stores active drag data for overlay and clears tap placement.
    */
   function handleDragStart(event: DragStartEvent) {
+    setPlacement(null)
     setActiveDrag(event.active.data.current as DragData)
   }
 
@@ -265,28 +318,86 @@ const PlanEditor = ({
     if (!target) return
 
     const data = active.data.current as DragData
+    applyPlacement(data, target.dayIndex, target.slotIndex)
+  }
 
+  /**
+   * Applies a library add or meal-item move into a target slot.
+   *
+   * @param data - Drag / placement payload
+   * @param dayIndex - Target day index e.g. `0`
+   * @param slotIndex - Target meal slot index e.g. `2`
+   *
+   * @example
+   * applyPlacement(libraryFoodPayload, 0, 1)
+   */
+  function applyPlacement(data: DragData, dayIndex: number, slotIndex: number) {
     if (data.type === DND_TYPES.LIBRARY_FOOD) {
-      addItemToSlot(
-        target.dayIndex,
-        target.slotIndex,
-        entryFromLibraryFood(data),
-      )
-    } else if (data.type === DND_TYPES.LIBRARY_RECIPE) {
-      addItemToSlot(
-        target.dayIndex,
-        target.slotIndex,
-        entryFromLibraryRecipe(data),
-      )
-    } else if (data.type === DND_TYPES.MEAL_ITEM) {
-      moveItem(
-        data.dayIndex,
-        data.slotIndex,
-        data.itemId,
-        target.dayIndex,
-        target.slotIndex,
-      )
+      addItemToSlot(dayIndex, slotIndex, entryFromLibraryFood(data))
+      return
     }
+
+    if (data.type === DND_TYPES.LIBRARY_RECIPE) {
+      addItemToSlot(dayIndex, slotIndex, entryFromLibraryRecipe(data))
+      return
+    }
+
+    moveItem(
+      data.dayIndex,
+      data.slotIndex,
+      data.itemId,
+      dayIndex,
+      slotIndex,
+    )
+  }
+
+  /**
+   * Starts tap-to-place from the food library and closes the mobile drawer.
+   *
+   * @param payload - Food or recipe from the library
+   *
+   * @example
+   * handlePlaceRequest(libraryFoodPayload)
+   */
+  function handlePlaceRequest(payload: LibraryPlacePayload) {
+    setPlacement(payload)
+    setLibraryOpen(false)
+  }
+
+  /**
+   * Starts tap-to-move for an existing meal item.
+   *
+   * @param dayIndex - Source day index
+   * @param slotIndex - Source slot index
+   * @param item - Food entry being moved
+   *
+   * @example
+   * handleRequestMove(0, 1, foodEntry)
+   */
+  function handleRequestMove(dayIndex: number, slotIndex: number, item: FoodEntry) {
+    setPlacement({
+      type: DND_TYPES.MEAL_ITEM,
+      itemId: item.id,
+      dayIndex,
+      slotIndex,
+      name: item.name,
+      calories: item.calories,
+    })
+  }
+
+  /**
+   * Completes tap-to-place into the chosen meal slot.
+   *
+   * @param dayIndex - Target day index
+   * @param slotIndex - Target slot index
+   *
+   * @example
+   * handlePlaceHere(0, 2)
+   */
+  function handlePlaceHere(dayIndex: number, slotIndex: number) {
+    if (!placement) return
+    applyPlacement(placement, dayIndex, slotIndex)
+    setPlacement(null)
   }
 
   /**
@@ -340,6 +451,9 @@ const PlanEditor = ({
     setSelectedItemId(item.id)
   }
 
+  const placementLabel =
+    placement && 'name' in placement ? placement.name : null
+
   const layout = (
     <div className={workspaceStyles.layout}>
       <WorkspaceNav />
@@ -385,6 +499,25 @@ const PlanEditor = ({
           </div>
         </header>
 
+        {placementLabel && (
+          <div
+            className={styles.placementBanner}
+            role="status"
+            data-keep-selection
+          >
+            <p className={styles.placementText}>
+              Tap a meal to add <strong>{placementLabel}</strong>
+            </p>
+            <button
+              type="button"
+              className={styles.placementCancel}
+              onClick={() => setPlacement(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         <div className={styles.dayList}>
           {localPlan.days.map((day, dayIndex) => (
             <DayRow
@@ -400,16 +533,35 @@ const PlanEditor = ({
               onRemoveItem={(slotIndex, itemId) =>
                 removeItemFromSlot(dayIndex, slotIndex, itemId)
               }
+              placementActive={Boolean(placement)}
+              onPlaceHere={(slotIndex) => handlePlaceHere(dayIndex, slotIndex)}
+              onRequestMove={(slotIndex, item) =>
+                handleRequestMove(dayIndex, slotIndex, item)
+              }
             />
           ))}
         </div>
       </main>
 
       {isEditing && (
-        <FoodLibrary
-          recipes={recipes}
-          onManualFood={() => setManualFoodOpen(true)}
-        />
+        <>
+          <button
+            type="button"
+            className={styles.libraryFab}
+            onClick={() => setLibraryOpen(true)}
+            aria-expanded={libraryOpen}
+            hidden={libraryOpen}
+          >
+            Food library
+          </button>
+          <FoodLibrary
+            recipes={recipes}
+            onManualFood={() => setManualFoodOpen(true)}
+            onPlaceRequest={handlePlaceRequest}
+            mobileOpen={libraryOpen}
+            onMobileClose={() => setLibraryOpen(false)}
+          />
+        </>
       )}
     </div>
   )

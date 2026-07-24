@@ -4,6 +4,8 @@ import AuthGate from '#/components/AuthGate'
 import CloudAuthPanel from '#/components/CloudAuthPanel'
 import Footer from '#/components/Footer'
 import Header from '#/components/Header'
+import MobileNavDrawer from '#/components/MobileNavDrawer'
+import { useCloudAuth } from '#/hooks/useCloudAuth'
 
 import mainCss from '../main.css?url'
 
@@ -35,10 +37,12 @@ export const Route = createRootRoute({
 function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const isPublic = pathname === '/privacy' || pathname === '/privacy/'
+  const { isLoggedIn } = useCloudAuth()
 
   return (
     <>
       <Header />
+      <MobileNavDrawer disabled={!isLoggedIn && !isPublic} />
       <AuthGate allowPublic={isPublic}>
         <Outlet />
       </AuthGate>

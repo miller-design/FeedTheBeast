@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '#/lib/html-entities'
 import type { MealPlan } from '#/types/meal-plan'
 import type { Recipe } from '#/types/recipe'
 import type {
@@ -5,7 +6,6 @@ import type {
   ShoppingListGroup,
   ShoppingListItem,
 } from '#/types/shopping-list'
-import { decodeHtmlEntities } from '#/lib/html-entities'
 
 /** Display order and labels for grocery categories */
 export const SHOPPING_CATEGORY_META: {
@@ -19,12 +19,16 @@ export const SHOPPING_CATEGORY_META: {
   { category: 'pantry', label: 'Pantry' },
   { category: 'spices', label: 'Spices & seasonings' },
   { category: 'frozen', label: 'Frozen' },
-  { category: 'other', label: 'Other' },
+  { category: 'other', label: 'Uncategorised' },
 ]
 
 /**
  * Measurement tokens that belong with the quantity, not the product name.
  * "4 tbsp olive oil" → qty 4, unit tbsp, name olive oil — not "4 olive oils".
+ */
+/**
+ * Unit tokens for parsing. Single-letter `g` / `l` use a negative lookahead so
+ * they never steal the first letter of "garlic", "limes", etc.
  */
 const MEASUREMENT_UNITS = [
   'tablespoons?',
@@ -38,26 +42,29 @@ const MEASUREMENT_UNITS = [
   'ml\\.?',
   'litres?',
   'liters?',
-  'l\\.?',
+  'l(?![a-z])',
   'kilograms?',
   'kg\\.?',
   'grams?',
-  'g\\.?',
+  'g(?![a-z])',
   'pounds?',
   'lbs?\\.?',
   'ounces?',
   'oz\\.?',
   'fluid\\s+ounces?',
   'fl\\.?\\s*oz\\.?',
+  'floz',
   'pinches?',
   'dashes?',
   'handfuls?',
   'cloves?',
+  'stalks?',
   'cans?',
   'tins?',
   'jars?',
   'packs?',
   'packets?',
+  'packages?',
   'bunches?',
   'slices?',
   'pieces?',
@@ -68,9 +75,9 @@ const MEASUREMENT_UNITS = [
 
 const UNIT_PATTERN = MEASUREMENT_UNITS.join('|')
 
-/** Leading quantity: 2, 1/2, 1½, 1 1/2, 2.5 */
+/** Leading quantity: 2, 1/2, 1½, 1 1/2, 2.5, or ranges 2-3 / 6–8 */
 const QTY_PATTERN =
-  '(?<qty>(?:\\d+\\s+)?\\d+\\s*\\/\\s*\\d+|\\d+[\\u00bc-\\u00be\\u2150-\\u215e]?|(?:\\d+)?[\\u00bc-\\u00be\\u2150-\\u215e]|\\d+(?:\\.\\d+)?)'
+  '(?<qty>(?:\\d+\\s+)?\\d+\\s*\\/\\s*\\d+|\\d+[\\u00bc-\\u00be\\u2150-\\u215e]?|(?:\\d+)?[\\u00bc-\\u00be\\u2150-\\u215e]|\\d+(?:\\.\\d+)?(?:\\s*[–—-]\\s*(?:\\d+\\s*\\/\\s*\\d+|\\d+(?:\\.\\d+)?))?)'
 
 const INGREDIENT_WITH_UNIT = new RegExp(
   `^${QTY_PATTERN}\\s*(?<unit>${UNIT_PATTERN})\\b(?:\\s+of)?\\s+(?<name>.+)$`,
@@ -83,9 +90,119 @@ const INGREDIENT_COUNT_ONLY = new RegExp(
 )
 
 const PREP_WORDS =
-  /\b(fresh|large|medium|small|chopped|diced|minced|sliced|crushed|grated|ground|dried|frozen|organic|whole|boneless|skinless|raw|cooked|extra.?virgin)\b/gi
+  /\b(fresh|freshly|large|medium|small|chopped|diced|minced|sliced|crushed|grated|shredded|ground|dried|frozen|organic|whole|boneless|skinless|raw|cooked|extra.?virgin|finely|roughly|thinly|melted|refrigerated|pre-?cooked|fat-?free|full-?fat|plain|natural|toasted|smoked|roasted|old-?fashioned|rolled|granulated|semisweet|unsweetened|low-?calorie|stabilized|traditional|all-?purpose|curly)\b/gi
 
-/** Keyword → category heuristics for aisle grouping */
+const USE_PHRASES =
+  /\b(to taste|as needed|optional|for frying|for cooking|for serving|for garnish|for dipping|or more|plus more)\b/gi
+
+/** Lone adjectives left after parsing — not real shopping items */
+const ORPHAN_DESCRIPTORS = new Set([
+  'natural',
+  'toasted',
+  'smoked',
+  'roasted',
+  'fresh',
+  'freshly',
+  'large',
+  'medium',
+  'small',
+  'plain',
+  'organic',
+  'dried',
+  'frozen',
+  'melted',
+  'chopped',
+  'diced',
+  'minced',
+  'sliced',
+  'grated',
+  'shredded',
+  'ground',
+  'cooked',
+  'raw',
+  'whole',
+  'fine',
+  'finely',
+])
+
+const NON_SHOPPABLE_PATTERN =
+  /^(water|tap water|hot water|cold water|boiling water|warm water|iced? water|ice|cooking spray|low-calorie cooking spray|herbs|meatless alternative|lingonberry|blueberry)$/i
+
+/** Always presence-only on the list (buy the item, ignore recipe amounts). */
+const PRESENCE_ONLY_NAMES = new Set([
+  'olive oil',
+  'vegetable oil',
+  'avocado oil',
+  'butter',
+  'salt',
+  'black pepper',
+  'red pepper flakes',
+  'garlic',
+  'garlic powder',
+  'onion powder',
+  'ginger',
+  'soy sauce',
+  'honey',
+  'brown sugar',
+  'sugar',
+  'flour',
+  'vanilla extract',
+  'almond extract',
+  'oregano',
+  'italian seasoning',
+  'taco seasoning',
+  'chicken seasoning',
+  'bay leaf',
+  'fennel seeds',
+  'garam masala',
+  'curry paste',
+  'chilli powder',
+  'chili crisp',
+  'canned tomatoes',
+  'tomato sauce',
+  'chicken stock',
+  'vegetable stock',
+  'kale',
+  'spinach',
+  'cilantro',
+  'parsley',
+])
+
+/**
+ * Kitchen measures that are recipe instructions, not shoppable amounts.
+ * Clove/stalk counts of aromatics also become presence checks.
+ */
+const KITCHEN_MEASURE_UNITS = new Set([
+  'tbsp',
+  'tsp',
+  'cup',
+  'pinch',
+  'dash',
+  'handful',
+  'sprig',
+  'fl oz',
+  'clove',
+  'stalk',
+  'ml',
+  'l',
+])
+
+/** Package / count units that should round up to a whole number for shopping. */
+const CEIL_UNITS = new Set([
+  'can',
+  'tin',
+  'jar',
+  'pack',
+  'packet',
+  'package',
+  'bunch',
+  'piece',
+  'slice',
+  'stick',
+  'head',
+])
+
+/** Keyword → category heuristics (longer phrases win). */
 const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
   {
     category: 'dairy_eggs',
@@ -99,8 +216,6 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'egg',
       'eggs',
       'sour cream',
-      'crème',
-      'creme',
       'mozzarella',
       'parmesan',
       'cheddar',
@@ -109,22 +224,30 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'cottage cheese',
       'buttermilk',
       'ghee',
+      'tortellini',
+      'cheese tortellini',
+      'whipped cream',
     ],
   },
   {
     category: 'meat_fish',
     words: [
+      'chicken thigh',
+      'chicken breast',
+      'chicken thighs',
+      'chicken breasts',
+      'ground beef',
+      'italian sausage',
+      'sausage',
       'chicken',
       'beef',
       'pork',
       'lamb',
       'turkey',
       'bacon',
-      'sausage',
       'ham',
       'steak',
       'mince',
-      'ground beef',
       'fish',
       'salmon',
       'tuna',
@@ -134,8 +257,6 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'seafood',
       'duck',
       'chorizo',
-      'prosciutto',
-      'salami',
     ],
   },
   {
@@ -144,7 +265,8 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'salt',
       'black pepper',
       'white pepper',
-      'ground pepper',
+      'red pepper flakes',
+      'pepper flakes',
       'paprika',
       'cumin',
       'cinnamon',
@@ -155,7 +277,10 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'seasoning',
       'chili powder',
       'chilli powder',
+      'hot chilli powder',
       'curry powder',
+      'curry paste',
+      'yellow curry paste',
       'turmeric',
       'nutmeg',
       'cayenne',
@@ -163,23 +288,40 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'onion powder',
       'bay leaf',
       'bay leaves',
+      'bay',
       'vanilla extract',
+      'almond extract',
+      'fennel seeds',
+      'garam masala',
+      'taco seasoning',
+      'italian seasoning',
+      'chicken seasoning',
+      'chili crisp',
     ],
   },
   {
     category: 'produce',
     words: [
+      'green onion',
+      'green onions',
+      'spring onion',
+      'spring onions',
+      'scallion',
+      'scallions',
       'onion',
+      'onions',
       'garlic',
       'tomato',
+      'tomatoes',
       'potato',
+      'potatoes',
       'carrot',
+      'carrots',
       'celery',
       'bell pepper',
-      'red pepper',
-      'green pepper',
       'lettuce',
       'spinach',
+      'baby spinach',
       'kale',
       'broccoli',
       'cauliflower',
@@ -187,10 +329,14 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'zucchini',
       'cucumber',
       'lemon',
+      'lemons',
       'lime',
+      'limes',
       'orange',
       'apple',
       'banana',
+      'cherry',
+      'cherries',
       'berry',
       'berries',
       'avocado',
@@ -205,9 +351,8 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'arugula',
       'cabbage',
       'salad',
-      'spring onion',
-      'scallion',
       'shallot',
+      'shallots',
       'chilli',
       'chili',
       'jalapeño',
@@ -217,15 +362,18 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
   {
     category: 'bakery',
     words: [
+      'garlic bread',
       'bread',
       'bun',
       'roll',
       'tortilla',
+      'tortillas',
       'wrap',
       'pita',
       'bagel',
       'croissant',
       'pastry',
+      'gnocchi',
     ],
   },
   {
@@ -235,20 +383,29 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
   {
     category: 'pantry',
     words: [
+      'chicken broth',
+      'chicken stock',
+      'vegetable broth',
+      'vegetable stock',
+      'beef broth',
+      'beef stock',
+      'broth',
+      'stock',
       'olive oil',
+      'avocado oil',
       'vegetable oil',
       'oil',
       'flour',
       'sugar',
+      'brown sugar',
       'rice',
       'pasta',
       'noodle',
-      'beans',
       'lentil',
+      'lentils',
+      'beans',
+      'black beans',
       'chickpea',
-      'stock',
-      'broth',
-      'sauce',
       'soy sauce',
       'vinegar',
       'honey',
@@ -264,18 +421,114 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'cereal',
       'quinoa',
       'couscous',
+      'panko',
       'breadcrumbs',
       'coconut milk',
       'tomato paste',
+      'tomato sauce',
       'passata',
-      'canned',
+      'salsa',
       'baking powder',
       'baking soda',
       'yeast',
       'cornstarch',
       'cornflour',
-      'pepper',
+      'cocoa',
+      'chocolate chips',
+      'almonds',
+      'sunflower seeds',
+      'wheat germ',
+      'extract',
     ],
+  },
+]
+
+/** Exact / pattern aliases → short shopping names */
+const NAME_ALIASES: { pattern: RegExp; name: string }[] = [
+  { pattern: /^(table|kosher|sea|fine|flaky|rock|iodized|coarse|pink|himalayan)\s+salt$/, name: 'salt' },
+  { pattern: /^salt$/, name: 'salt' },
+  { pattern: /^(red\s+)?pepper\s+flakes$/, name: 'red pepper flakes' },
+  {
+    pattern: /^(freshly\s+)?(ground\s+)?(black\s+|white\s+)?pepper$/,
+    name: 'black pepper',
+  },
+  { pattern: /^(extra virgin\s+)?olive oil$/, name: 'olive oil' },
+  {
+    pattern: /^(vegetable|canola|rapeseed|sunflower)\s+oil$/,
+    name: 'vegetable oil',
+  },
+  { pattern: /^avocado oil$/, name: 'avocado oil' },
+  { pattern: /^oil$/, name: 'olive oil' },
+  { pattern: /^melted butter$/, name: 'butter' },
+  { pattern: /^butter$/, name: 'butter' },
+  {
+    pattern:
+      /^(arge\s+)?(cloves?\s+(of\s+)?)?garlic$|^garlic\s+cloves?$|^arlic$/,
+    name: 'garlic',
+  },
+  { pattern: /^(cilantro|coriander)(\s+leaves)?$/, name: 'cilantro' },
+  { pattern: /^parsley(\s+leaves)?$/, name: 'parsley' },
+  { pattern: /^bay(\s+leaves?)?$/, name: 'bay leaf' },
+  { pattern: /^chicken\s+(broth|stock)$/, name: 'chicken stock' },
+  { pattern: /^vegetable\s+(broth|stock)$/, name: 'vegetable stock' },
+  { pattern: /^parmesan(\s+cheese)?$/, name: 'parmesan' },
+  { pattern: /^(shredded\s+)?mozzarella(\s+cheese)?$/, name: 'mozzarella' },
+  { pattern: /^(full-?fat\s+)?ricotta(\s+cheese)?$/, name: 'ricotta' },
+  { pattern: /^(cheese\s+)?tortellini$/, name: 'cheese tortellini' },
+  {
+    pattern: /^(plain|fat-?free|natural|full-?fat)?\s*(yogurt|yoghurt)$/,
+    name: 'yogurt',
+  },
+  { pattern: /^panko(\s+breadcrumbs?)?$/, name: 'panko' },
+  { pattern: /^(traditional\s+)?breadcrumbs?$/, name: 'breadcrumbs' },
+  { pattern: /^(old-?fashioned\s+)?(rolled\s+)?oats$/, name: 'oats' },
+  { pattern: /^brown sugar$/, name: 'brown sugar' },
+  { pattern: /^(granulated\s+)?sugar$/, name: 'sugar' },
+  { pattern: /^(wholegrain\s+)?(long\s+grain\s+)?rice$/, name: 'rice' },
+  { pattern: /^(green|spring)\s+onions?$|^scallions?$/, name: 'green onions' },
+  { pattern: /^(yellow\s+)?onions?$/, name: 'onion' },
+  { pattern: /^shallots?$/, name: 'shallot' },
+  { pattern: /^carrots?$/, name: 'carrot' },
+  { pattern: /^lemons?$/, name: 'lemon' },
+  { pattern: /^limes?$|^imes$/, name: 'lime' },
+  { pattern: /^(baby\s+)?spinach$/, name: 'spinach' },
+  { pattern: /^(curly\s+)?kale(\s+salad)?$/, name: 'kale' },
+  { pattern: /^garlic bread$/, name: 'garlic bread' },
+  { pattern: /^(black\s+)?beans$/, name: 'black beans' },
+  { pattern: /^(full-?fat\s+)?coconut milk$/, name: 'coconut milk' },
+  { pattern: /^(jar of\s+)?tomato sauce$/, name: 'tomato sauce' },
+  { pattern: /^tomato paste$/, name: 'tomato paste' },
+  {
+    pattern:
+      /^((can|tin|jar)(\s+of)?\s+)?(san\s+marzano(\s+style)?\s+)?(canned\s+)?tomatoes$/,
+    name: 'canned tomatoes',
+  },
+  { pattern: /^(your\s+favorite\s+)?salsa$/, name: 'salsa' },
+  { pattern: /^(flour\s+)?tortillas?$/, name: 'flour tortillas' },
+  { pattern: /^chicken breasts?$/, name: 'chicken breasts' },
+  { pattern: /^chicken thighs?$/, name: 'chicken thighs' },
+  { pattern: /^italian sausage$/, name: 'italian sausage' },
+  {
+    pattern:
+      /^(lingonberry|blueberry)(\s+or\s+(lingonberry|blueberry))?\s+jam$|^jam$/,
+    name: 'jam',
+  },
+  { pattern: /^(yellow\s+)?curry paste$/, name: 'curry paste' },
+  { pattern: /^unsweetened cocoa$|^cocoa$/, name: 'cocoa' },
+  {
+    pattern: /^semisweet chocolate chips$|^chocolate chips$/,
+    name: 'chocolate chips',
+  },
+  { pattern: /^red split lentils$|^lentils?$/, name: 'lentils' },
+  { pattern: /^(packages?\s+)?(pre-?\s*)?gnocchi$/, name: 'gnocchi' },
+  { pattern: /^stabilized wheat germ$|^wheat germ$/, name: 'wheat germ' },
+  {
+    pattern: /^hot chilli powder$|^chilli powder$|^chili powder$/,
+    name: 'chilli powder',
+  },
+  {
+    pattern: /^all-?purpose chicken seasoning$|^chicken seasoning$/,
+    name: 'chicken seasoning',
   },
 ]
 
@@ -297,12 +550,12 @@ type MutableLine = {
 /**
  * Parses a unicode or ascii fraction / mixed number into a float.
  *
- * @param raw - Quantity token such as "2", "1/2", "1½", or "1 1/2"
- * @returns Numeric value, or undefined if unparseable
+ * @param raw - Quantity token such as "2", "1/2", "1½", "1 1/2", or "2-3"
+ * @returns Numeric value (ranges use the higher end for shopping), or undefined
  *
  * @example
  * parseQuantityToken('1½') // 1.5
- * parseQuantityToken('1 1/2') // 1.5
+ * parseQuantityToken('2-3') // 3
  */
 function parseQuantityToken(raw: string): number | undefined {
   const cleaned = raw.trim().replace(/\s+/g, ' ')
@@ -324,6 +577,13 @@ function parseQuantityToken(raw: string): number | undefined {
     '⅜': 0.375,
     '⅝': 0.625,
     '⅞': 0.875,
+  }
+
+  // Ranges like 2-3 or 1/4 – 1/2 → buy enough (higher end)
+  const range = cleaned.split(/\s*[–—-]\s*/)
+  if (range.length === 2 && range[0] && range[1]) {
+    const high = parseQuantityToken(range[1])
+    if (high != null) return high
   }
 
   for (const [glyph, value] of Object.entries(vulgar)) {
@@ -369,16 +629,18 @@ function normaliseUnit(unit: string): string {
   if (/^(grams?|g)$/.test(u)) return 'g'
   if (/^(pounds?|lbs?)$/.test(u)) return 'lb'
   if (/^(ounces?|oz)$/.test(u)) return 'oz'
-  if (/^(fluid ounces?|fl oz)$/.test(u)) return 'fl oz'
+  if (/^(fluid ounces?|fl oz|floz)$/.test(u)) return 'fl oz'
   if (/^pinches?$/.test(u)) return 'pinch'
   if (/^dashes?$/.test(u)) return 'dash'
   if (/^handfuls?$/.test(u)) return 'handful'
   if (/^cloves?$/.test(u)) return 'clove'
+  if (/^stalks?$/.test(u)) return 'stalk'
   if (/^cans?$/.test(u)) return 'can'
   if (/^tins?$/.test(u)) return 'tin'
   if (/^jars?$/.test(u)) return 'jar'
   if (/^packs?$/.test(u)) return 'pack'
   if (/^packets?$/.test(u)) return 'packet'
+  if (/^packages?$/.test(u)) return 'package'
   if (/^bunches?$/.test(u)) return 'bunch'
   if (/^slices?$/.test(u)) return 'slice'
   if (/^pieces?$/.test(u)) return 'piece'
@@ -390,43 +652,248 @@ function normaliseUnit(unit: string): string {
 }
 
 /**
+ * Prepares raw ingredient text before qty/unit parsing.
+ * Prefers metric in dual units (20g/¾oz), strips filler words.
+ *
+ * @param text - Raw recipe ingredient line
+ * @returns Normalised line ready to parse
+ *
+ * @example
+ * preprocessIngredientText('20g/¾oz ginger') // '20g ginger'
+ * preprocessIngredientText('this garlic bread') // 'garlic bread'
+ */
+export function preprocessIngredientText(text: string): string {
+  let line = decodeHtmlEntities(text.trim())
+    .replace(/\*/g, '')
+    .replace(/\s+/g, ' ')
+
+  // Prefer the first unit in dual forms: 20g/¾oz, 600ml/20floz, 150g/5½oz
+  line = line.replace(
+    /(\d+(?:[./]\d+)?(?:[¼½¾⅓⅔]|[\u00bc-\u00be\u2150-\u215e])?)\s*(g|kg|ml|l|oz|floz|fl\.?\s*oz)\s*\/\s*[^\s]+/gi,
+    '$1$2',
+  )
+
+  line = line
+    .replace(/\blb\./gi, 'lb')
+    .replace(/\boz\./gi, 'oz')
+    // Package-size adjectives before a container: "one 25-ounce jar" → "jar"
+    .replace(
+      /\b(?:one|two|a|an)?\s*\d+[-\s]?(?:ounce|oz)s?\s+(?=jar|can|tin|package|pack|bottle)/gi,
+      ' ',
+    )
+    .replace(/\b(one|two|a|an|this|your favorite)\b/gi, ' ')
+    .replace(/\bzest and juice of\b/gi, '')
+    .replace(/\bjuice of\b/gi, '')
+    .replace(/\bzest of\b/gi, '')
+    .replace(/\bzest and\b/gi, '')
+    .replace(/\bor meatless alternative\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return line
+}
+
+/**
  * Cleans ingredient name text for display and merge keys.
  *
  * @param name - Product portion of the ingredient line
- * @returns Trimmed name without trailing notes in parentheses
+ * @returns Trimmed name without trailing recipe notes
  *
  * @example
- * cleanIngredientName('olive oil (extra virgin)') // 'olive oil'
+ * cleanIngredientName('salt to taste') // 'salt'
  */
 function cleanIngredientName(name: string): string {
   return name
     .replace(/\([^)]*\)/g, ' ')
+    .replace(USE_PHRASES, ' ')
+    .replace(/\bor a can of\b.*/i, ' ')
+    .replace(/\bor meatless alternative\b/gi, ' ')
+    // Drop leading qty/unit leftovers when the whole line became the "name"
+    .replace(
+      /^\d+(?:\.\d+)?(?:\s*[–—-]\s*(?:\d+\/\d+|\d+(?:\.\d+)?))?\s*(?:cups?|tablespoons?|tbsp|teaspoons?|tsp|ml|g|oz|ounces?|lb|lbs|cans?|jars?|tins?|packages?)?\s*/i,
+      '',
+    )
+    .replace(/^(can|tin|jar|package|pack)(\s+of)?\s+/i, '')
     .replace(/,.*$/, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
 /**
- * Builds a merge key that ignores prep adjectives so "large eggs" and "eggs" combine.
+ * Splits combined seasoning / alternative lines into separate items.
  *
- * @param name - Display name
- * @returns Lowercased key used for deduplication
+ * @param text - Raw ingredient line (may include qty/units)
+ * @returns One or more lines to parse individually
  *
  * @example
- * mergeKey('Large Eggs') // 'eggs'
+ * expandCompoundIngredient('salt and red pepper flakes')
+ * // ['salt', 'red pepper flakes']
  */
-function mergeKey(name: string): string {
-  return cleanIngredientName(name)
-    .toLowerCase()
+export function expandCompoundIngredient(text: string): string[] {
+  const decoded = preprocessIngredientText(text)
+  if (!decoded) return []
+
+  if (
+    /\bsalt\s*(?:\+|and|&)\s*(?:freshly\s+)?(?:ground\s+)?(?:black\s+|white\s+)?pepper\b/i.test(
+      decoded,
+    )
+  ) {
+    return ['salt', 'black pepper']
+  }
+
+  if (/\bsalt\s*(?:\+|and|&)\s+red pepper flakes\b/i.test(decoded)) {
+    return ['salt', 'red pepper flakes']
+  }
+
+  if (/\s\+\s/.test(decoded)) {
+    return decoded
+      .split(/\s\+\s/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  }
+
+  // Jam alternatives stay as one pantry item
+  if (/\bjam\b/i.test(decoded) && /\bor\b/i.test(decoded)) {
+    return [decoded]
+  }
+
+  // "tomato sauce or a can of san marzano tomatoes" → both options
+  if (
+    /\btomato sauce\b/i.test(decoded) &&
+    /\bor\b/i.test(decoded) &&
+    /\btomatoes?\b/i.test(decoded)
+  ) {
+    return ['tomato sauce', 'canned tomatoes']
+  }
+
+  // "olive oil or butter" → both as presence checks when the right side is short
+  const orSplit = decoded.match(/^(.*?)\s+or\s+(.+)$/i)
+  if (orSplit?.[1] && orSplit[2]) {
+    const left = orSplit[1].trim()
+    const right = orSplit[2].trim()
+    if (right.split(/\s+/).length <= 4) {
+      return [left, right]
+    }
+  }
+
+  return [decoded]
+}
+
+/**
+ * Maps recipe wording to a short canonical product name for merging.
+ *
+ * @param name - Cleaned ingredient name
+ * @returns Canonical shopping name
+ *
+ * @example
+ * canonicalShoppingName('table salt') // 'salt'
+ * canonicalShoppingName('parmesan cheese') // 'parmesan'
+ */
+export function canonicalShoppingName(name: string): string {
+  let cleaned = cleanIngredientName(name)
     .replace(PREP_WORDS, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+    .toLowerCase()
+
+  if (!cleaned) return cleanIngredientName(name).toLowerCase() || name
+
+  cleaned = cleaned.replace(/^of\s+/, '').replace(/\s+/g, ' ').trim()
+
+  // Match aliases before stripping "leaves"/"cloves" so "bay leaves" stays intact
+  for (const { pattern, name: alias } of NAME_ALIASES) {
+    if (pattern.test(cleaned)) return alias
+  }
+
+  cleaned = cleaned
+    .replace(/\b(leaves|leaf|stalks?|cloves?)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  for (const { pattern, name: alias } of NAME_ALIASES) {
+    if (pattern.test(cleaned)) return alias
+  }
+
+  // Pepper the spice — not bell / chilli peppers
+  if (
+    /\bpepper\b/.test(cleaned) &&
+    !/\b(bell|chilli|chili|jalape[nñ]o|sweet|flakes|red pepper|green pepper)\b/.test(
+      cleaned,
+    )
+  ) {
+    return 'black pepper'
+  }
+
+  return cleaned
+}
+
+/**
+ * Whether an ingredient should be omitted from the shopping list.
+ *
+ * @param name - Canonical or cleaned product name
+ * @returns True for non-shoppable staples like water
+ *
+ * @example
+ * isNonShoppable('water') // true
+ */
+export function isNonShoppable(name: string): boolean {
+  const key = name.toLowerCase().trim()
+  if (!key) return true
+  if (ORPHAN_DESCRIPTORS.has(key)) return true
+  if (NON_SHOPPABLE_PATTERN.test(key)) return true
+  if (
+    /\bwater\b/.test(key) &&
+    !/\b(watermelon|watercress|water\s*chestnuts?|coconut\s+water|soda\s+water|tonic\s+water)\b/.test(
+      key,
+    )
+  ) {
+    return true
+  }
+  if (/cooking spray/i.test(key)) return true
+  // Long unresolved "X or Y" lines that escaped splitting
+  if (/\bor\b/.test(key) && key.split(/\s+/).length > 6) return true
+  return false
+}
+
+/**
+ * Converts imperial recipe amounts to metric units common in UK cooking.
+ * oz/lb → g, fl oz → ml. Already-metric units are left alone.
+ *
+ * @param quantity - Amount to convert
+ * @param unit - Canonical unit from parsing
+ * @returns Metric quantity and unit for the shopping list
+ *
+ * @example
+ * toCommonMetric(8, 'oz') // { quantity: 225, unit: 'g' }
+ * toCommonMetric(0.5, 'lb') // { quantity: 225, unit: 'g' }
+ * toCommonMetric(50, 'g') // { quantity: 50, unit: 'g' }
+ */
+export function toCommonMetric(
+  quantity: number,
+  unit: string,
+): { quantity: number; unit: string } {
+  switch (unit) {
+    case 'oz':
+      return { quantity: Math.round(quantity * 28.35), unit: 'g' }
+    case 'lb':
+      return { quantity: Math.round(quantity * 453.6), unit: 'g' }
+    case 'kg':
+      return quantity >= 1
+        ? { quantity: Math.round(quantity * 100) / 100, unit: 'kg' }
+        : { quantity: Math.round(quantity * 1000), unit: 'g' }
+    case 'fl oz':
+      return { quantity: Math.round(quantity * 29.6), unit: 'ml' }
+    case 'l':
+      return quantity >= 1
+        ? { quantity: Math.round(quantity * 100) / 100, unit: 'l' }
+        : { quantity: Math.round(quantity * 1000), unit: 'ml' }
+    default:
+      return { quantity, unit }
+  }
 }
 
 /**
  * Parses a free-text recipe ingredient into quantity, optional unit, and name.
- * Measurement units stay with the quantity so "4 tbsp olive oil" is oil measured
- * in tablespoons — not four bottles of oil.
  *
  * @param text - Raw ingredient line from a recipe
  * @returns Parsed parts ready to scale and merge
@@ -434,22 +901,37 @@ function mergeKey(name: string): string {
  * @example
  * parseIngredientText('4 tbsp olive oil')
  * // { quantity: 4, unit: 'tbsp', name: 'olive oil' }
- *
- * parseIngredientText('2 large eggs')
- * // { quantity: 2, name: 'large eggs' }
- *
- * parseIngredientText('salt')
- * // { name: 'salt' }
  */
 export function parseIngredientText(text: string): ParsedIngredient {
-  const trimmed = decodeHtmlEntities(text.trim().replace(/\s+/g, ' '))
+  const trimmed = preprocessIngredientText(text)
   if (!trimmed) return { name: '' }
 
+  // "2 cloves garlic" / "garlic cloves" style already covered by unit parse
   const withUnit = trimmed.match(INGREDIENT_WITH_UNIT)
   if (withUnit?.groups) {
-    const quantity = parseQuantityToken(withUnit.groups.qty ?? '')
-    const unit = normaliseUnit(withUnit.groups.unit ?? '')
-    const name = cleanIngredientName(withUnit.groups.name ?? '')
+    const quantity = parseQuantityToken(withUnit.groups.qty)
+    const unit = normaliseUnit(withUnit.groups.unit)
+    const name = cleanIngredientName(withUnit.groups.name)
+    if (name) {
+      return {
+        name,
+        ...(quantity != null ? { quantity } : {}),
+        ...(unit ? { unit } : {}),
+      }
+    }
+  }
+
+  // "20g ginger" / "20gginger" without a required space before the unit
+  const glued = trimmed.match(
+    new RegExp(
+      `^${QTY_PATTERN}\\s*(?<unit>${UNIT_PATTERN})\\s*(?<name>[a-zA-Z].*)$`,
+      'i',
+    ),
+  )
+  if (glued?.groups) {
+    const quantity = parseQuantityToken(glued.groups.qty)
+    const unit = normaliseUnit(glued.groups.unit)
+    const name = cleanIngredientName(glued.groups.name)
     if (name) {
       return {
         name,
@@ -461,8 +943,8 @@ export function parseIngredientText(text: string): ParsedIngredient {
 
   const countOnly = trimmed.match(INGREDIENT_COUNT_ONLY)
   if (countOnly?.groups) {
-    const quantity = parseQuantityToken(countOnly.groups.qty ?? '')
-    const name = cleanIngredientName(countOnly.groups.name ?? '')
+    const quantity = parseQuantityToken(countOnly.groups.qty)
+    const name = cleanIngredientName(countOnly.groups.name)
     if (name) {
       return {
         name,
@@ -481,8 +963,7 @@ export function parseIngredientText(text: string): ParsedIngredient {
  * @returns Shopping category for grouping
  *
  * @example
- * categoriseIngredient('olive oil') // 'pantry'
- * categoriseIngredient('cheddar cheese') // 'dairy_eggs'
+ * categoriseIngredient('chicken stock') // 'pantry'
  */
 export function categoriseIngredient(name: string): ShoppingCategory {
   const lower = name.toLowerCase()
@@ -513,7 +994,6 @@ export function categoriseIngredient(name: string): ShoppingCategory {
  * @example
  * formatQuantity(4) // '4'
  * formatQuantity(1.5) // '1.5'
- * formatQuantity(2.333333) // '2.33'
  */
 export function formatQuantity(quantity: number): string {
   if (Number.isInteger(quantity)) return String(quantity)
@@ -522,25 +1002,10 @@ export function formatQuantity(quantity: number): string {
 }
 
 /**
- * Kitchen measures that are recipe instructions, not shoppable amounts.
- * "4 tbsp olive oil" → shopper just needs olive oil in the cupboard.
- */
-const KITCHEN_MEASURE_UNITS = new Set([
-  'tbsp',
-  'tsp',
-  'cup',
-  'pinch',
-  'dash',
-  'handful',
-  'sprig',
-  'fl oz',
-])
-
-/**
  * Whether a unit is a cooking measure rather than a buyable pack/weight.
  *
  * @param unit - Canonical unit from `normaliseUnit`
- * @returns True for tbsp/cup/tsp-style measures
+ * @returns True for tbsp/cup/tsp/clove-style measures
  *
  * @example
  * isKitchenMeasure('tbsp') // true
@@ -551,49 +1016,105 @@ export function isKitchenMeasure(unit: string): boolean {
 }
 
 /**
- * Drops recipe kitchen measures so the list only checks that the item is needed.
- * Keeps buyable amounts (g, ml, cans) and plain counts (eggs).
+ * Drops recipe kitchen measures and presence-only staples so the list
+ * only checks that the item is needed.
  *
- * @param parsed - Parsed ingredient after text parse
- * @returns Presence-only line for kitchen measures; otherwise unchanged
+ * @param parsed - Parsed ingredient after text parse + canonical name
+ * @returns Presence-only line when amounts are not shoppable
  *
  * @example
  * toShoppingAmount({ name: 'olive oil', quantity: 4, unit: 'tbsp' })
  * // { name: 'olive oil' }
- *
- * toShoppingAmount({ name: 'chicken', quantity: 400, unit: 'g' })
- * // { name: 'chicken', quantity: 400, unit: 'g' }
  */
 export function toShoppingAmount(parsed: ParsedIngredient): ParsedIngredient {
-  if (parsed.unit && isKitchenMeasure(parsed.unit)) {
-    return { name: parsed.name }
+  const canonical = canonicalShoppingName(parsed.name)
+  if (PRESENCE_ONLY_NAMES.has(canonical)) {
+    return { name: canonical }
   }
-  return parsed
+  if (parsed.unit && isKitchenMeasure(parsed.unit)) {
+    return { name: canonical }
+  }
+  return { ...parsed, name: canonical }
+}
+
+/**
+ * Rounds merged quantities into buyable amounts (whole eggs, cans, etc.).
+ *
+ * @param quantity - Scaled/merged quantity
+ * @param unit - Optional unit
+ * @returns Ceiled/rounded quantity suitable for a shopping list
+ *
+ * @example
+ * roundShoppingQuantity(0.17, undefined) // 1
+ * roundShoppingQuantity(0.5, 'can') // 1
+ * roundShoppingQuantity(3.75, undefined) // 4
+ */
+export function roundShoppingQuantity(
+  quantity: number,
+  unit?: string,
+): number {
+  if (unit && CEIL_UNITS.has(unit)) {
+    return Math.max(1, Math.ceil(quantity - 1e-9))
+  }
+  if (!unit) {
+    return Math.max(1, Math.ceil(quantity - 1e-9))
+  }
+  if (unit === 'g' || unit === 'ml') {
+    return Math.max(1, Math.round(quantity))
+  }
+  if (unit === 'lb' || unit === 'oz' || unit === 'kg') {
+    const rounded = Math.round(quantity * 100) / 100
+    return rounded < 0.1 ? 0.1 : rounded
+  }
+  return Math.round(quantity * 100) / 100
+}
+
+/**
+ * Picks a singular/plural display form for countable items.
+ *
+ * @param name - Canonical singular shopping name
+ * @param quantity - Amount being bought
+ * @returns Name inflected for the quantity
+ *
+ * @example
+ * pluralizeName('carrot', 1) // 'carrot'
+ * pluralizeName('carrot', 2) // 'carrots'
+ * pluralizeName('shallot', 2) // 'shallots'
+ */
+export function pluralizeName(name: string, quantity: number): string {
+  if (quantity === 1) return name
+  if (name === 'bay leaf') return 'bay leaves'
+  if (name === 'cheese tortellini') return name
+  if (name.endsWith('s')) return name
+  if (name.endsWith('y') && !/[aeiou]y$/i.test(name)) {
+    return `${name.slice(0, -1)}ies`
+  }
+  return `${name}s`
 }
 
 /**
  * Builds the visible label for one shopping line.
+ * Amounts always render as `{qty}{unit} {name}` so the unit sits tight against the value.
  *
  * @param item - Aggregated shopping-list item
- * @returns Label such as "olive oil", "400 g chicken", or "4 eggs"
+ * @returns Label such as "olive oil", "50g lentils", or "4 eggs"
  *
  * @example
- * formatShoppingLine({ name: 'olive oil' }) // 'olive oil'
- * formatShoppingLine({ name: 'eggs', quantity: 4 }) // '4 eggs'
+ * formatShoppingLine({ name: 'lentils', quantity: 50, unit: 'g' }) // '50g lentils'
+ * formatShoppingLine({ name: 'carrot', quantity: 2 }) // '2 carrots'
  */
 export function formatShoppingLine(
   item: Pick<ShoppingListItem, 'name' | 'quantity' | 'unit'>,
 ): string {
   if (item.quantity == null) return item.name
   if (item.unit) {
-    return `${formatQuantity(item.quantity)} ${item.unit} ${item.name}`
+    return `${formatQuantity(item.quantity)}${item.unit} ${item.name}`
   }
-  return `${formatQuantity(item.quantity)} ${item.name}`
+  return `${formatQuantity(item.quantity)} ${pluralizeName(item.name, item.quantity)}`
 }
 
 /**
  * Scales a parsed ingredient by how many recipe servings were added to the plan.
- * Presence-only kitchen-measure items are left unchanged.
  *
  * @param parsed - Parsed ingredient line (after `toShoppingAmount`)
  * @param scale - planServings / recipe.servings
@@ -618,16 +1139,12 @@ function scaleParsedIngredient(
  * Generates a shopping list from a meal plan by collecting recipe ingredients,
  * scaling them to planned servings, merging duplicates, and grouping by aisle.
  *
- * Non-recipe food entries (manual / Open Food Facts) are listed as single products
- * under Other when they appear in the plan.
- *
  * @param plan - Meal plan to scan
  * @param recipes - Recipe library used to resolve `recipeId` references
  * @returns Category groups with merged items (empty groups omitted)
  *
  * @example
  * buildShoppingList(plan, recipes)
- * // [{ category: 'dairy_eggs', label: 'Dairy & eggs', items: [...] }, ...]
  */
 export function buildShoppingList(
   plan: MealPlan,
@@ -643,23 +1160,29 @@ export function buildShoppingList(
    * @param category - Override category when known (e.g. packaged foods)
    */
   function addLine(parsed: ParsedIngredient, category?: ShoppingCategory) {
-    const name = parsed.name.trim()
-    if (!name) return
+    const canonical = canonicalShoppingName(parsed.name)
+    if (!canonical || isNonShoppable(canonical)) return
 
-    const unit = parsed.unit
-    // Presence-only lines (no qty) merge by name so tbsp/cup oil collapse together
+    let quantity = parsed.quantity
+    let unit = parsed.unit
+
+    // Normalise imperial amounts to metric before merging
+    if (quantity != null && unit) {
+      const metric = toCommonMetric(quantity, unit)
+      quantity = metric.quantity
+      unit = metric.unit
+    }
+
     const key =
-      parsed.quantity == null
-        ? `${mergeKey(name)}::need`
-        : `${mergeKey(name)}::${unit ?? 'count'}`
+      quantity == null ? `${canonical}::need` : `${canonical}::${unit ?? 'count'}`
     const existing = lines.get(key)
-    const resolvedCategory = category ?? categoriseIngredient(name)
+    const resolvedCategory = category ?? categoriseIngredient(canonical)
 
     if (!existing) {
       lines.set(key, {
-        name: mergeKey(name) || name.toLowerCase(),
-        displayName: name,
-        quantity: parsed.quantity,
+        name: canonical,
+        displayName: canonical,
+        quantity,
         unit,
         category: resolvedCategory,
         recipeCount: 1,
@@ -668,12 +1191,8 @@ export function buildShoppingList(
     }
 
     existing.recipeCount += 1
-    if (parsed.quantity != null) {
-      existing.quantity = (existing.quantity ?? 0) + parsed.quantity
-    }
-    // Prefer the shorter / simpler display name when merging variants
-    if (name.length < existing.displayName.length) {
-      existing.displayName = name
+    if (quantity != null) {
+      existing.quantity = (existing.quantity ?? 0) + quantity
     }
   }
 
@@ -689,16 +1208,15 @@ export function buildShoppingList(
           const scale = plannedServings / baseServings
 
           for (const ingredient of recipe.ingredients) {
-            const forShopping = toShoppingAmount(
-              parseIngredientText(ingredient.text),
-            )
-            const parsed = scaleParsedIngredient(forShopping, scale)
-            addLine(parsed)
+            for (const part of expandCompoundIngredient(ingredient.text)) {
+              const forShopping = toShoppingAmount(parseIngredientText(part))
+              const parsed = scaleParsedIngredient(forShopping, scale)
+              addLine(parsed)
+            }
           }
           continue
         }
 
-        // Manual / barcode items: list the product once (grams kept for OFF weights)
         if (item.source === 'openfoodfacts' && item.unit === 'g') {
           addLine(
             { name: item.name, quantity: item.quantity, unit: 'g' },
@@ -711,14 +1229,34 @@ export function buildShoppingList(
     }
   }
 
-  const items: ShoppingListItem[] = [...lines.values()].map((line, index) => ({
-    id: `${line.name}-${line.unit ?? 'count'}-${index}`,
-    name: line.displayName,
-    ...(line.quantity != null ? { quantity: line.quantity } : {}),
-    ...(line.unit ? { unit: line.unit } : {}),
-    category: line.category,
-    recipeCount: line.recipeCount,
-  }))
+  // Second pass: if the same product appears both as presence and with amounts,
+  // keep a single presence line (oils/garlic already presence-only).
+  const presenceNames = new Set(
+    [...lines.values()]
+      .filter((line) => line.quantity == null)
+      .map((line) => line.name),
+  )
+  for (const [key, line] of lines) {
+    if (line.quantity != null && presenceNames.has(line.name)) {
+      lines.delete(key)
+    }
+  }
+
+  const items: ShoppingListItem[] = [...lines.values()].map((line, index) => {
+    const quantity =
+      line.quantity != null
+        ? roundShoppingQuantity(line.quantity, line.unit)
+        : undefined
+
+    return {
+      id: `${line.name}-${line.unit ?? 'count'}-${index}`,
+      name: line.displayName,
+      ...(quantity != null ? { quantity } : {}),
+      ...(line.unit ? { unit: line.unit } : {}),
+      category: line.category,
+      recipeCount: line.recipeCount,
+    }
+  })
 
   return SHOPPING_CATEGORY_META.map(({ category, label }) => ({
     category,

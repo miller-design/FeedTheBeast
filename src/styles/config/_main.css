@@ -10,13 +10,15 @@
   /* Grid */
   --grid-columns: 12;
   --grid-gutter: 0.5rem;
-  --grid-margin: 2rem;
+  --grid-margin: 1rem;
 
   /*
-   * Sticky header: 1.5rem pad + 2rem control + 1.5rem pad + 1px border.
+   * Sticky header: vertical pad + 2.25rem control + 1px border.
+   * Mobile uses 0.75rem pad; md+ uses 1rem. Prefer the md value so sticky
+   * library/sidebar never sits under the taller header.
    * Keep in sync with Header/styles.module.css padding and control heights.
    */
-  --app-header-height: calc(5rem + 1px);
+  --app-header-height: calc(4.25rem + 1px);
 
   /* Font Weights */
   --fw-regular: 400;
@@ -29,4 +31,10 @@
   --lh-tight: 1;
   --lh-normal: 1.2;
   --lh-relaxed: 1.5;
+}
+
+@media (--bp-md) {
+  :root {
+    --grid-margin: 2rem;
+  }
 }

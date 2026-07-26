@@ -1,0 +1,71 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+
+  &:hover:not(.chipActive) {
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
+    background: var(--color-btn-ghost-hover-bg);
+  }
+}
+
+.chipActive {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-inset);
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
+}
+
+.count {
+  color: var(--color-text-muted);
+  font-weight: var(--fw-medium);
+}
+
+.chipActive .count {
+  color: var(--color-text-secondary);
+}
+
+.clear {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--color-text);
+  }
+}

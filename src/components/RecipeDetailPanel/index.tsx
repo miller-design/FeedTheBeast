@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import RecipeTagPicker from '#/components/RecipeTagPicker'
 import SlidePanel from '#/components/SlidePanel'
 import panelStyles from '#/components/SlidePanel/panel.module.css'
+import { decodeHtmlEntities } from '#/lib/html-entities'
 import type { RecipeTag } from '#/lib/recipe-tags'
 import type { UpdateRecipeInput } from '#/types/recipe'
 
@@ -111,8 +112,14 @@ const RecipeDetailPanel = ({
     setProtein(current.nutrition.protein)
     setCarbs(current.nutrition.carbs)
     setFat(current.nutrition.fat)
-    setIngredientsText(current.ingredients.map((ingredient) => ingredient.text).join('\n'))
-    setInstructionsText(current.instructions.join('\n'))
+    setIngredientsText(
+      current.ingredients
+        .map((ingredient) => decodeHtmlEntities(ingredient.text))
+        .join('\n'),
+    )
+    setInstructionsText(
+      current.instructions.map((step) => decodeHtmlEntities(step)).join('\n'),
+    )
   }
 
   /**
@@ -373,9 +380,11 @@ const RecipeDetailPanel = ({
               </h3>
               {recipe.ingredients.length > 0 ? (
                 <ul className={styles.ingredientList}>
-                  {recipe.ingredients.map((ingredient) => (
-                    <li key={ingredient.id}>{ingredient.text}</li>
-                  ))}
+              {recipe.ingredients.map((ingredient) => (
+                  <li key={ingredient.id}>
+                    {decodeHtmlEntities(ingredient.text)}
+                  </li>
+                ))}
                 </ul>
               ) : (
                 <p className={panelStyles.hint}>No ingredients saved for this recipe.</p>
@@ -392,7 +401,9 @@ const RecipeDetailPanel = ({
               {recipe.instructions.length > 0 ? (
                 <ol className={styles.methodList}>
                   {recipe.instructions.map((step, index) => (
-                    <li key={`${recipe.id}-step-${index}`}>{step}</li>
+                    <li key={`${recipe.id}-step-${index}`}>
+                      {decodeHtmlEntities(step)}
+                    </li>
                   ))}
                 </ol>
               ) : (

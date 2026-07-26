@@ -12,11 +12,14 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import DayRow from '#/components/DayRow'
 import FoodLibrary from '#/components/FoodLibrary'
 import type { LibraryPlacePayload } from '#/components/FoodLibrary/types'
+import ManualFoodDialog from '#/components/ManualFoodDialog'
 import PlanItemDetailPanel from '#/components/PlanItemDetailPanel'
+import ShoppingListPanel from '#/components/ShoppingListPanel'
 import WorkspaceNav from '#/components/WorkspaceNav'
 import { getAllRecipes } from '#/lib/db/recipes'
-import { createId } from '#/lib/meal-plan-factory'
 import { DND_TYPES, parseMealSlotDropId } from '#/lib/dnd'
+import { createId } from '#/lib/meal-plan-factory'
+import { buildShoppingList } from '#/lib/shopping-list'
 import type {
   DragData,
   LibraryFoodDragData,
@@ -25,8 +28,6 @@ import type {
 } from '#/lib/dnd'
 import type { FoodEntry, MealPlan, PlanDay } from '#/types/meal-plan'
 import type { Recipe } from '#/types/recipe'
-
-import ManualFoodDialog from '#/components/ManualFoodDialog'
 
 import workspaceStyles from '#/styles/workspace-page.module.css'
 
@@ -58,12 +59,18 @@ const PlanEditor = ({
   const [mode, setMode] = useState<PlanEditorMode>(initialMode)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [manualFoodOpen, setManualFoodOpen] = useState(false)
+  const [shoppingListOpen, setShoppingListOpen] = useState(false)
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [placement, setPlacement] = useState<PlacementPayload | null>(null)
 
   const isEditing = mode === 'edit'
+
+  const shoppingListGroups = useMemo(
+    () => buildShoppingList(localPlan, recipes),
+    [localPlan, recipes],
+  )
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -490,6 +497,13 @@ const PlanEditor = ({
               )}
               <button
                 type="button"
+                className={workspaceStyles.secondaryBtn}
+                onClick={() => setShoppingListOpen(true)}
+              >
+                Shopping list
+              </button>
+              <button
+                type="button"
                 className={`${workspaceStyles.secondaryBtn} ${styles.printBtn}`}
                 onClick={() => window.print()}
               >
@@ -566,6 +580,15 @@ const PlanEditor = ({
     </div>
   )
 
+  const shoppingListPanel = (
+    <ShoppingListPanel
+      open={shoppingListOpen}
+      onClose={() => setShoppingListOpen(false)}
+      planName={localPlan.name}
+      groups={shoppingListGroups}
+    />
+  )
+
   if (!isEditing) {
     return (
       <>
@@ -574,6 +597,7 @@ const PlanEditor = ({
           selection={sidebarSelection}
           onClose={() => setSelectedItemId(null)}
         />
+        {shoppingListPanel}
       </>
     )
   }
@@ -602,6 +626,7 @@ const PlanEditor = ({
         onClose={() => setManualFoodOpen(false)}
         onAdd={handleManualFood}
       />
+      {shoppingListPanel}
     </DndContext>
   )
 }

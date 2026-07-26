@@ -1,4 +1,5 @@
 import { suggestRecipeTags } from '#/lib/recipe-tags'
+import { decodeHtmlEntities } from '#/lib/html-entities'
 import type { ImportedRecipeDraft, RecipeNutrition } from '#/types/recipe'
 
 type JsonLdNode = Record<string, unknown>
@@ -95,18 +96,20 @@ function parseSchemaNutrition(nutrition: JsonLdNode | undefined): RecipeNutritio
  * Normalises recipe instructions from various schema.org formats.
  *
  * @param instructions - Raw instructions array or string
- * @returns Flat list of instruction strings
+ * @returns Flat list of instruction strings with HTML entities decoded
  */
 function parseInstructions(instructions: unknown): string[] {
-  if (typeof instructions === 'string') return [instructions.trim()].filter(Boolean)
+  if (typeof instructions === 'string') {
+    return [decodeHtmlEntities(instructions.trim())].filter(Boolean)
+  }
 
   if (!Array.isArray(instructions)) return []
 
   return instructions
     .map((step) => {
-      if (typeof step === 'string') return step.trim()
+      if (typeof step === 'string') return decodeHtmlEntities(step.trim())
       if (step && typeof step === 'object' && 'text' in step) {
-        return String((step as JsonLdNode).text).trim()
+        return decodeHtmlEntities(String((step as JsonLdNode).text).trim())
       }
       return ''
     })
@@ -117,11 +120,13 @@ function parseInstructions(instructions: unknown): string[] {
  * Normalises ingredient list from schema.org recipe data.
  *
  * @param ingredients - Raw ingredient array
- * @returns Flat list of ingredient strings
+ * @returns Flat list of ingredient strings with HTML entities decoded
  */
 function parseIngredients(ingredients: unknown): string[] {
   if (!Array.isArray(ingredients)) return []
-  return ingredients.map((item) => String(item).trim()).filter(Boolean)
+  return ingredients
+    .map((item) => decodeHtmlEntities(String(item).trim()))
+    .filter(Boolean)
 }
 
 /**
@@ -290,10 +295,10 @@ export function mapJsonLdToRecipeDraft(
   const resolvedUrl = sourceUrl?.trim() || extractUrlFromRecipeNode(recipeNode)
 
   return {
-    name: String(recipeNode.name ?? 'Imported recipe'),
+    name: decodeHtmlEntities(String(recipeNode.name ?? 'Imported recipe')),
     description:
       typeof recipeNode.description === 'string'
-        ? recipeNode.description
+        ? decodeHtmlEntities(recipeNode.description)
         : undefined,
     imageUrl,
     sourceUrl: resolvedUrl,

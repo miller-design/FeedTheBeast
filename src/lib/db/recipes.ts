@@ -1,4 +1,5 @@
 import { createId } from '#/lib/meal-plan-factory'
+import { decodeHtmlEntities } from '#/lib/html-entities'
 import { normalizeRecipeSourceUrl } from '#/lib/recipe-import'
 import { db } from '#/lib/db/index'
 import { normalizeRecipeTags, type RecipeTag } from '#/lib/recipe-tags'
@@ -74,13 +75,28 @@ export async function deleteRecipe(id: string): Promise<void> {
  * Converts ingredient strings to structured ingredient objects.
  *
  * @param ingredients - Raw ingredient text lines
- * @returns Structured ingredients with IDs
+ * @returns Structured ingredients with IDs and decoded HTML entities
  */
 function mapIngredients(ingredients: string[]): RecipeIngredient[] {
   return ingredients
-    .map((text) => text.trim())
+    .map((text) => decodeHtmlEntities(text.trim()))
     .filter(Boolean)
     .map((text) => ({ id: createId(), text }))
+}
+
+/**
+ * Normalises instruction lines, decoding any leftover HTML entities.
+ *
+ * @param instructions - Raw method step strings
+ * @returns Trimmed, decoded steps
+ *
+ * @example
+ * mapInstructions(["You&#8217;re welcome"]) // ["You’re welcome"]
+ */
+function mapInstructions(instructions: string[]): string[] {
+  return instructions
+    .map((step) => decodeHtmlEntities(step.trim()))
+    .filter(Boolean)
 }
 
 /**
@@ -101,7 +117,7 @@ export function createRecipeFromInput(input: CreateRecipeInput): Recipe {
     description: input.description?.trim(),
     servings: input.servings,
     ingredients: mapIngredients(input.ingredients),
-    instructions: input.instructions.map((s) => s.trim()).filter(Boolean),
+    instructions: mapInstructions(input.instructions),
     nutrition: input.nutrition,
     tags: normalizeRecipeTags(input.tags),
     createdAt: now,
@@ -123,8 +139,10 @@ export function createRecipeFromImport(draft: ImportedRecipeDraft): Recipe {
 
   return {
     id: createId(),
-    name: draft.name,
-    description: draft.description,
+    name: decodeHtmlEntities(draft.name),
+    description: draft.description
+      ? decodeHtmlEntities(draft.description)
+      : undefined,
     imageUrl: draft.imageUrl,
     sourceUrl: draft.sourceUrl,
     sourceSite: draft.sourceSite,
@@ -132,7 +150,7 @@ export function createRecipeFromImport(draft: ImportedRecipeDraft): Recipe {
     prepTimeMinutes: draft.prepTimeMinutes,
     cookTimeMinutes: draft.cookTimeMinutes,
     ingredients: mapIngredients(draft.ingredients),
-    instructions: draft.instructions,
+    instructions: mapInstructions(draft.instructions),
     nutrition: draft.nutrition,
     tags: normalizeRecipeTags(draft.tags),
     createdAt: now,
@@ -159,10 +177,10 @@ export async function updateRecipe(
 
   const updated: Recipe = {
     ...existing,
-    name: input.name.trim(),
+    name: decodeHtmlEntities(input.name.trim()),
     servings: input.servings,
     ingredients: mapIngredients(input.ingredients),
-    instructions: input.instructions.map((step) => step.trim()).filter(Boolean),
+    instructions: mapInstructions(input.instructions),
     nutrition: input.nutrition,
     updatedAt: new Date().toISOString(),
   }

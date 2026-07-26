@@ -1,6 +1,7 @@
 import SlidePanel from '#/components/SlidePanel'
 import panelStyles from '#/components/SlidePanel/panel.module.css'
 import recipeStyles from '#/components/RecipeDetailPanel/styles.module.css'
+import { decodeHtmlEntities } from '#/lib/html-entities'
 import type { FoodEntry } from '#/types/meal-plan'
 import type { Recipe } from '#/types/recipe'
 
@@ -197,7 +198,9 @@ function PlanItemDetailContent({ selection }: PlanItemDetailContentProps) {
           {recipe.ingredients.length > 0 ? (
             <ul className={recipeStyles.ingredientList}>
               {recipe.ingredients.map((ingredient) => (
-                <li key={ingredient.id}>{ingredient.text}</li>
+                <li key={ingredient.id}>
+                  {decodeHtmlEntities(ingredient.text)}
+                </li>
               ))}
             </ul>
           ) : (
@@ -217,7 +220,9 @@ function PlanItemDetailContent({ selection }: PlanItemDetailContentProps) {
           {recipe.instructions.length > 0 ? (
             <ol className={recipeStyles.methodList}>
               {recipe.instructions.map((step, index) => (
-                <li key={`${recipe.id}-step-${index}`}>{step}</li>
+                <li key={`${recipe.id}-step-${index}`}>
+                  {decodeHtmlEntities(step)}
+                </li>
               ))}
             </ol>
           ) : (

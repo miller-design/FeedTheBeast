@@ -1,4 +1,5 @@
-import { RECIPE_TAG_LABELS, type RecipeTag } from '#/lib/recipe-tags'
+import { RECIPE_TAG_LABELS } from '#/lib/recipe-tags'
+import type { RecipeTag } from '#/lib/recipe-tags'
 import workspaceStyles from '#/styles/workspace-page.module.css'
 
 import type { RecipeCardProps } from './types'

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDraggable } from '@dnd-kit/core'
 import clsx from 'clsx'
@@ -138,7 +138,6 @@ const FoodLibrary = ({
   const [hoverPreview, setHoverPreview] = useState<RecipeHoverPreview | null>(null)
   const [mounted, setMounted] = useState(false)
   const [entered, setEntered] = useState(false)
-  const finePointerRef = useRef(true)
   const isDesktop = useMediaQuery('(min-width: 1280px)')
 
   const filteredRecipes = useMemo(
@@ -206,25 +205,6 @@ const FoodLibrary = ({
   }, [isDesktop, mounted])
 
   /**
-   * Enables cursor-follow previews only on fine pointers (mouse / trackpad).
-   */
-  useEffect(() => {
-    const media = window.matchMedia('(pointer: fine)')
-
-    /**
-     * Syncs the fine-pointer flag from the media query.
-     */
-    function syncPointer() {
-      finePointerRef.current = media.matches
-      if (!media.matches) setHoverPreview(null)
-    }
-
-    syncPointer()
-    media.addEventListener('change', syncPointer)
-    return () => media.removeEventListener('change', syncPointer)
-  }, [])
-
-  /**
    * Clears the hover preview when leaving the recipes tab.
    */
   useEffect(() => {
@@ -233,6 +213,8 @@ const FoodLibrary = ({
 
   /**
    * Positions the floating preview near the cursor, clamped to the viewport.
+   * Prefers the left of the cursor when hovering the right-hand library so the
+   * preview sits over the plan instead of under the pointer.
    *
    * @param clientX - Pointer X from the event e.g. `420`
    * @param clientY - Pointer Y from the event e.g. `280`
@@ -244,11 +226,13 @@ const FoodLibrary = ({
    */
   const showRecipePreview = useCallback(
     (clientX: number, clientY: number, imageUrl: string, name: string) => {
-      if (!finePointerRef.current) return
-
       const maxX = window.innerWidth - PREVIEW_WIDTH - 8
       const maxY = window.innerHeight - PREVIEW_HEIGHT - 8
-      const x = Math.min(Math.max(8, clientX + PREVIEW_OFFSET_X), maxX)
+      const preferLeft = clientX > window.innerWidth * 0.55
+      const rawX = preferLeft
+        ? clientX - PREVIEW_WIDTH - PREVIEW_OFFSET_X
+        : clientX + PREVIEW_OFFSET_X
+      const x = Math.min(Math.max(8, rawX), maxX)
       const y = Math.min(Math.max(8, clientY + PREVIEW_OFFSET_Y), maxY)
 
       setHoverPreview({ imageUrl, name, x, y })
@@ -546,13 +530,15 @@ const FoodLibrary = ({
           )}
         </div>
       )}
+      </aside>
 
       {hoverPreview &&
         createPortal(
           <div
             className={styles.hoverPreview}
             style={{
-              transform: `translate3d(${hoverPreview.x}px, ${hoverPreview.y}px, 0)`,
+              left: hoverPreview.x,
+              top: hoverPreview.y,
             }}
             aria-hidden
           >
@@ -566,7 +552,6 @@ const FoodLibrary = ({
           </div>,
           document.body,
         )}
-      </aside>
     </>
   )
 }
@@ -624,7 +609,9 @@ function DraggableFood({ product, onPlaceRequest }: DraggableFoodProps) {
         <span className={styles.itemName}>{product.name}</span>
         {product.brand && <span className={styles.itemBrand}>{product.brand}</span>}
         <span className={styles.itemMeta}>
-          {scaled.calories} kcal · drag or tap +
+          {scaled.calories} kcal ·{' '}
+          <span className={styles.desktopHint}>drag to add</span>
+          <span className={styles.touchHint}>drag or tap +</span>
         </span>
       </div>
       {onPlaceRequest && (
@@ -669,7 +656,7 @@ type DraggableRecipeProps = {
 
 /**
  * Draggable recipe from the user's library. When the recipe has an image,
- * hovering with a fine pointer shows a cursor-follow preview.
+ * hovering with a mouse shows a cursor-follow preview.
  *
  * @param props.recipe - Library recipe to drag into a meal slot
  * @param props.onPreviewMove - Updates the shared hover preview position/image
@@ -715,11 +702,18 @@ function DraggableRecipe({
 
   /**
    * Starts or updates the floating preview for recipes that have an image.
+   * Uses mouse events so previews only appear with a cursor (not touch).
+   * Clears any existing preview when the row has no image (avoids a stale
+   * preview when moving from an imaged recipe onto one without).
    *
-   * @param event - Pointer event from the recipe row
+   * @param event - Mouse event from the recipe row
    */
-  function handlePointerMove(event: React.PointerEvent<HTMLLIElement>) {
-    if (!imageUrl || isDragging) return
+  function handleMouseMove(event: React.MouseEvent<HTMLLIElement>) {
+    if (isDragging) return
+    if (!imageUrl) {
+      onPreviewHide()
+      return
+    }
     onPreviewMove(event.clientX, event.clientY, imageUrl, recipe.name)
   }
 
@@ -729,9 +723,9 @@ function DraggableRecipe({
       className={clsx(styles.item, isDragging && styles.dragging)}
       {...listeners}
       {...attributes}
-      onPointerEnter={handlePointerMove}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={onPreviewHide}
+      onMouseEnter={handleMouseMove}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={onPreviewHide}
     >
       <div className={styles.itemBody}>
         <span className={styles.itemName}>{recipe.name}</span>
@@ -741,7 +735,9 @@ function DraggableRecipe({
           </span>
         )}
         <span className={styles.itemMeta}>
-          {recipe.nutrition.calories} kcal/serving · drag or tap +
+          {recipe.nutrition.calories} kcal/serving ·{' '}
+          <span className={styles.desktopHint}>drag to add</span>
+          <span className={styles.touchHint}>drag or tap +</span>
         </span>
       </div>
       {onPlaceRequest && (

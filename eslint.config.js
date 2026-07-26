@@ -15,6 +15,13 @@ export default [
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js', '.fttemplates/**'],
+    ignores: [
+      'eslint.config.js',
+      'prettier.config.js',
+      'postcss.config.js',
+      '.fttemplates/**',
+      '.output/**',
+      'dist/**',
+    ],
   },
 ]

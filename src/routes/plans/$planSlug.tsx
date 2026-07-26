@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import PlanEditor from '#/components/PlanEditor'
 import { useMealPlan } from '#/hooks/useMealPlan'
+import { buildSeoHead, pageTitle } from '#/lib/seo'
 
 import styles from './styles.module.css'
 
@@ -13,6 +14,14 @@ export const Route = createFileRoute('/plans/$planSlug')({
       search.edit === 1 ||
       search.edit === '1',
   }),
+  head: ({ params }) =>
+    buildSeoHead({
+      title: pageTitle('Meal Plan'),
+      description:
+        'Edit daily meals, calorie targets, and macros for this meal plan.',
+      path: `/plans/${params.planSlug}`,
+      noIndex: true,
+    }),
   component: PlanPage,
 })
 

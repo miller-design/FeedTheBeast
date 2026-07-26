@@ -6,15 +6,21 @@ import WorkspaceNav from '#/components/WorkspaceNav'
 import { useCloudAuth } from '#/hooks/useCloudAuth'
 import { useUserProfile } from '#/hooks/useUserProfile'
 import { deleteCurrentAccount } from '#/lib/cloud/account'
+import { buildSeoHead, pageTitle } from '#/lib/seo'
 import panelStyles from '#/components/SlidePanel/panel.module.css'
 
 import workspaceStyles from '#/styles/workspace-page.module.css'
 import styles from './styles.module.css'
 
 export const Route = createFileRoute('/account/')({
-  head: () => ({
-    meta: [{ title: 'Account — FeedTheBeast' }],
-  }),
+  head: () =>
+    buildSeoHead({
+      title: pageTitle('Account'),
+      description:
+        'Manage your FeedTheBeast profile, sync status, and cloud account settings.',
+      path: '/account',
+      noIndex: true,
+    }),
   component: AccountPage,
 })
 

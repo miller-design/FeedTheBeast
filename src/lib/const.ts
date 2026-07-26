@@ -5,6 +5,7 @@ type FooterLink = {
 }
 
 export const SITE_NAME = 'FeedTheBeast'
+export const SITE_TAGLINE = 'Meal Planner'
 export const FOOTER_COPYRIGHT = `${SITE_NAME}. All rights reserved.`
 
 export const FOOTER_LINKS: FooterLink[] = [

@@ -6,6 +6,8 @@ import Footer from '#/components/Footer'
 import Header from '#/components/Header'
 import MobileNavDrawer from '#/components/MobileNavDrawer'
 import { useCloudAuth } from '#/hooks/useCloudAuth'
+import { SITE_NAME, SITE_TAGLINE } from '#/lib/const'
+import { buildSeoHead, SITE_DESCRIPTION } from '#/lib/seo'
 
 import mainCss from '../main.css?url'
 
@@ -17,14 +19,37 @@ const themeInitScript = `
 })();
 `
 
+const defaultSeo = buildSeoHead()
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: SITE_NAME,
+  alternateName: `${SITE_NAME} ${SITE_TAGLINE}`,
+  description: SITE_DESCRIPTION,
+  applicationCategory: 'LifestyleApplication',
+  operatingSystem: 'Web',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+}
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'FeedTheBeast — Meal Planner' },
+      ...defaultSeo.meta,
     ],
-    links: [{ rel: 'stylesheet', href: mainCss }],
+    links: [...defaultSeo.links, { rel: 'stylesheet', href: mainCss }],
+    scripts: [
+      {
+        type: 'application/ld+json',
+        children: JSON.stringify(jsonLd),
+      },
+    ],
   }),
   component: AppLayout,
   shellComponent: RootDocument,

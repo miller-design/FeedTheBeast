@@ -1,13 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { SITE_NAME } from '#/lib/const'
+import { buildSeoHead, pageTitle } from '#/lib/seo'
 
 import styles from './styles.module.css'
 
 export const Route = createFileRoute('/privacy/')({
-  head: () => ({
-    meta: [{ title: `Privacy Policy — ${SITE_NAME}` }],
-  }),
+  head: () =>
+    buildSeoHead({
+      title: pageTitle('Privacy Policy'),
+      description: `How ${SITE_NAME} handles your account, meal data, and privacy — what we store, sync, and never sell.`,
+      path: '/privacy',
+    }),
   component: PrivacyPolicy,
 })
 

@@ -54,8 +54,9 @@ export function parseDurationToMinutes(duration: unknown): number | undefined {
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/)
   if (!match) return undefined
 
-  const hours = Number(match[1] ?? 0)
-  const minutes = Number(match[2] ?? 0)
+  const hours = Number(match[1] || 0)
+  const minutes = Number(match[2] || 0)
+
   const total = hours * 60 + minutes
   return total > 0 ? total : undefined
 }

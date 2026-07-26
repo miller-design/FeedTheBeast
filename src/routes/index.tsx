@@ -6,10 +6,18 @@ import WorkspaceNav from '#/components/WorkspaceNav'
 import { formatPlanDate } from '#/lib/dates'
 import { useMealPlans } from '#/hooks/useMealPlans'
 import { useMultiSelect } from '#/hooks/useMultiSelect'
+import { buildSeoHead, pageTitle } from '#/lib/seo'
 
 import workspaceStyles from '#/styles/workspace-page.module.css'
 
 export const Route = createFileRoute('/')({
+  head: () =>
+    buildSeoHead({
+      title: pageTitle(),
+      description:
+        'Create meal plans with daily calorie targets, drag meals into place, and keep macros on track.',
+      path: '/',
+    }),
   component: Home,
 })
 

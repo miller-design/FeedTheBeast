@@ -2,7 +2,8 @@ import { createId } from '#/lib/meal-plan-factory'
 import { decodeHtmlEntities } from '#/lib/html-entities'
 import { normalizeRecipeSourceUrl } from '#/lib/recipe-import'
 import { db } from '#/lib/db/index'
-import { normalizeRecipeTags, type RecipeTag } from '#/lib/recipe-tags'
+import { normalizeRecipeTags } from '#/lib/recipe-tags'
+import type { RecipeTag } from '#/lib/recipe-tags'
 import type { FoodEntry } from '#/types/meal-plan'
 import type {
   CreateRecipeInput,

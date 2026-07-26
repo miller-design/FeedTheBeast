@@ -369,11 +369,18 @@
   color: var(--color-text-muted);
 }
 
+.desktopHint {
+  display: none;
+}
+
+.touchHint {
+  display: inline;
+}
+
 .hoverPreview {
   position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 80;
+  /* Above the food-library drawer (201) and its overlay (200) */
+  z-index: 220;
   width: 13.75rem;
   pointer-events: none;
   overflow: hidden;
@@ -381,11 +388,6 @@
   border-radius: 0.5rem;
   background: var(--color-bg-elevated);
   box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
-  will-change: transform;
-
-  @media (prefers-reduced-motion: reduce) {
-    will-change: auto;
-  }
 }
 
 .hoverPreviewImage {
@@ -431,6 +433,18 @@
 
   .rootVisible {
     transform: none;
+  }
+
+  .desktopHint {
+    display: inline;
+  }
+
+  .touchHint {
+    display: none;
+  }
+
+  .addBtn {
+    display: none;
   }
 }
 

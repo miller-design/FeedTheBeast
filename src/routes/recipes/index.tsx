@@ -10,12 +10,21 @@ import RecipeEmptyState from '#/components/RecipeEmptyState'
 import WorkspaceNav from '#/components/WorkspaceNav'
 import { useMultiSelect } from '#/hooks/useMultiSelect'
 import { useRecipes } from '#/hooks/useRecipes'
-import { RECIPE_TAGS, type RecipeTag } from '#/lib/recipe-tags'
+import { RECIPE_TAGS } from '#/lib/recipe-tags'
+import type { RecipeTag } from '#/lib/recipe-tags'
+import { buildSeoHead, pageTitle } from '#/lib/seo'
 import type { Recipe } from '#/types/recipe'
 
 import workspaceStyles from '#/styles/workspace-page.module.css'
 
 export const Route = createFileRoute('/recipes/')({
+  head: () =>
+    buildSeoHead({
+      title: pageTitle('Recipes'),
+      description:
+        'Build a recipe library, import from the web, and drop meals into your plans with nutrition per serving.',
+      path: '/recipes',
+    }),
   component: RecipesPage,
 })
 

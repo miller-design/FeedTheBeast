@@ -64,6 +64,32 @@
   gap: 0.5rem;
 }
 
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--sp-2);
+
+  @media (--bp-sm) {
+    justify-content: space-between;
+  }
+}
+
+.filterRowFilter {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.filterRowActions {
+  flex-shrink: 0;
+  margin-left: 0;
+
+  @media (--bp-sm) {
+    margin-left: auto;
+  }
+}
+
 .linkBtn {
   padding: 0.5rem 0.25rem;
   border: none;

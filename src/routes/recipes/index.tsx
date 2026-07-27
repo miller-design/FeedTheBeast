@@ -171,15 +171,6 @@ function RecipesPage() {
             <h1>Recipes</h1>
           </div>
           <div className={workspaceStyles.pageActions}>
-            {!selecting && recipes.length > 0 && (
-              <button
-                type="button"
-                className={workspaceStyles.secondaryBtn}
-                onClick={enterSelect}
-              >
-                Select
-              </button>
-            )}
             <button
               type="button"
               className={workspaceStyles.linkBtn}
@@ -208,14 +199,38 @@ function RecipesPage() {
 
         {!loading && recipes.length > 0 && (
           <section className={workspaceStyles.section}>
-            <RecipeCategoryFilter
-              value={tagFilters}
-              onChange={setTagFilters}
-              counts={tagCounts}
-              untaggedCount={untaggedCount}
-              includeUntagged={includeUntagged}
-              onIncludeUntaggedChange={setIncludeUntagged}
-            />
+            {!selecting ? (
+              <div className={workspaceStyles.filterRow}>
+                <div className={workspaceStyles.filterRowFilter}>
+                  <RecipeCategoryFilter
+                    value={tagFilters}
+                    onChange={setTagFilters}
+                    counts={tagCounts}
+                    untaggedCount={untaggedCount}
+                    includeUntagged={includeUntagged}
+                    onIncludeUntaggedChange={setIncludeUntagged}
+                  />
+                </div>
+                <div className={workspaceStyles.filterRowActions}>
+                  <button
+                    type="button"
+                    className={workspaceStyles.secondaryBtn}
+                    onClick={enterSelect}
+                  >
+                    Select
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <RecipeCategoryFilter
+                value={tagFilters}
+                onChange={setTagFilters}
+                counts={tagCounts}
+                untaggedCount={untaggedCount}
+                includeUntagged={includeUntagged}
+                onIncludeUntaggedChange={setIncludeUntagged}
+              />
+            )}
 
             {selecting && (
               <div className={workspaceStyles.selectionBar} role="toolbar">

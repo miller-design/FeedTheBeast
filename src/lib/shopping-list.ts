@@ -90,7 +90,7 @@ const INGREDIENT_COUNT_ONLY = new RegExp(
 )
 
 const PREP_WORDS =
-  /\b(fresh|freshly|large|medium|small|chopped|diced|minced|sliced|crushed|grated|shredded|ground|dried|frozen|organic|whole|boneless|skinless|raw|cooked|extra.?virgin|finely|roughly|thinly|melted|refrigerated|pre-?cooked|fat-?free|full-?fat|plain|natural|toasted|smoked|roasted|old-?fashioned|rolled|granulated|semisweet|unsweetened|low-?calorie|stabilized|traditional|all-?purpose|curly)\b/gi
+  /\b(fresh|freshly|large|medium|small|chopped|diced|minced|sliced|crushed|grated|shredded|ground|dried|frozen|organic|whole|bone-?in|boneless|skin-?on|skinless|raw|cooked|extra.?virgin|finely|roughly|thinly|melted|refrigerated|pre-?cooked|fat-?free|full-?fat|plain|natural|toasted|smoked|roasted|old-?fashioned|rolled|granulated|semisweet|unsweetened|low-?calorie|stabilized|traditional|all-?purpose|curly|free-?range)\b/gi
 
 const USE_PHRASES =
   /\b(to taste|as needed|optional|for frying|for cooking|for serving|for garnish|for dipping|or more|plus more)\b/gi
@@ -160,6 +160,11 @@ const PRESENCE_ONLY_NAMES = new Set([
   'chili crisp',
   'canned tomatoes',
   'tomato sauce',
+  'gochujang sauce',
+  'satay sauce',
+  'teriyaki sauce',
+  'sesame seeds',
+  'kimchi',
   'chicken stock',
   'vegetable stock',
   'kale',
@@ -297,6 +302,7 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'italian seasoning',
       'chicken seasoning',
       'chili crisp',
+      'sesame seeds',
     ],
   },
   {
@@ -340,6 +346,9 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'berry',
       'berries',
       'avocado',
+      'shiitake mushrooms',
+      'shiitake',
+      'mushrooms',
       'mushroom',
       'ginger',
       'parsley',
@@ -357,6 +366,7 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'chili',
       'jalapeño',
       'jalapeno',
+      'greens',
     ],
   },
   {
@@ -364,6 +374,8 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
     words: [
       'garlic bread',
       'bread',
+      'seeded buns',
+      'buns',
       'bun',
       'roll',
       'tortilla',
@@ -406,7 +418,12 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'beans',
       'black beans',
       'chickpea',
+      'gochujang sauce',
+      'gochujang',
+      'satay sauce',
+      'teriyaki sauce',
       'soy sauce',
+      'sauce',
       'vinegar',
       'honey',
       'maple',
@@ -416,6 +433,7 @@ const CATEGORY_KEYWORDS: { category: ShoppingCategory; words: string[] }[] = [
       'mayonnaise',
       'peanut butter',
       'jam',
+      'kimchi',
       'oat',
       'oats',
       'cereal',
@@ -505,8 +523,25 @@ const NAME_ALIASES: { pattern: RegExp; name: string }[] = [
   },
   { pattern: /^(your\s+favorite\s+)?salsa$/, name: 'salsa' },
   { pattern: /^(flour\s+)?tortillas?$/, name: 'flour tortillas' },
-  { pattern: /^chicken breasts?$/, name: 'chicken breasts' },
-  { pattern: /^chicken thighs?$/, name: 'chicken thighs' },
+  {
+    pattern: /^(?:bone-?in\s+)?chicken breasts?$/,
+    name: 'chicken breast',
+  },
+  {
+    pattern: /^(?:bone-?in\s+)?chicken thighs?$/,
+    name: 'chicken thigh',
+  },
+  // Unspecified "chicken" is almost always breast on a shopping list
+  { pattern: /^chicken$/, name: 'chicken breast' },
+  { pattern: /^bacon$/, name: 'bacon' },
+  { pattern: /^(seeded\s+)?buns?$/, name: 'buns' },
+  { pattern: /^gochujang(\s+sauce)?$/, name: 'gochujang sauce' },
+  { pattern: /^satay(\s+sauce)?$/, name: 'satay sauce' },
+  { pattern: /^teriyaki(\s+sauce)?$/, name: 'teriyaki sauce' },
+  { pattern: /^sesame seeds?$/, name: 'sesame seeds' },
+  { pattern: /^kimchi$/, name: 'kimchi' },
+  { pattern: /^(mixed\s+)?greens$/, name: 'greens' },
+  { pattern: /^(shiitake\s+)?mushrooms?$/, name: 'mushrooms' },
   { pattern: /^italian sausage$/, name: 'italian sausage' },
   {
     pattern:
@@ -543,8 +578,121 @@ type MutableLine = {
   displayName: string
   quantity?: number
   unit?: string
+  /** Piece count when a meat line also has a weight total */
+  pieceCount?: number
   category: ShoppingCategory
   recipeCount: number
+}
+
+/** Aisle groups where all amounts for one product merge onto a single line */
+const MERGE_BY_NAME_CATEGORIES = new Set<ShoppingCategory>(['meat_fish'])
+
+/** Units that render tight against the number (50g, 200ml) */
+const TIGHT_DISPLAY_UNITS = new Set(['g', 'kg', 'ml', 'l'])
+
+/**
+ * Whether a unit represents a buyable weight/volume rather than a piece count.
+ *
+ * @param unit - Canonical unit from `normaliseUnit`
+ * @returns True for g/kg/ml/l style amounts
+ *
+ * @example
+ * isWeightOrVolumeUnit('g') // true
+ * isWeightOrVolumeUnit('slice') // false
+ */
+function isWeightOrVolumeUnit(unit?: string): boolean {
+  return unit === 'g' || unit === 'kg' || unit === 'ml' || unit === 'l'
+}
+
+/**
+ * Builds the map key used when merging shopping-list contributions.
+ * Meat and fish merge on product name only so weights and piece counts combine.
+ *
+ * @param canonical - Normalised product name
+ * @param quantity - Parsed/scaled amount, if any
+ * @param unit - Canonical unit, if any
+ * @param category - Grocery aisle category
+ * @returns Stable merge key
+ *
+ * @example
+ * mergeLineKey('chicken thighs', 500, 'g', 'meat_fish') // 'chicken thighs::meat'
+ * mergeLineKey('lentils', 50, 'g', 'pantry') // 'lentils::g'
+ */
+function mergeLineKey(
+  canonical: string,
+  quantity: number | undefined,
+  unit: string | undefined,
+  category: ShoppingCategory,
+): string {
+  if (quantity == null) return `${canonical}::need`
+  if (MERGE_BY_NAME_CATEGORIES.has(category)) return `${canonical}::meat`
+  return `${canonical}::${unit ?? 'count'}`
+}
+
+/**
+ * Adds a scaled amount onto an existing meat/fish line, combining weight with
+ * piece counts when recipes mix "500g chicken thighs" and "4 chicken thighs".
+ *
+ * @param line - Existing aggregated line (mutated in place)
+ * @param quantity - Incoming scaled amount
+ * @param unit - Incoming canonical unit; omitted for piece counts
+ *
+ * @example
+ * mergeMeatQuantity({ quantity: 500, unit: 'g' }, 4, undefined)
+ * // line becomes { quantity: 500, unit: 'g', pieceCount: 4 }
+ */
+function mergeMeatQuantity(
+  line: MutableLine,
+  quantity: number,
+  unit?: string,
+): void {
+  if (isWeightOrVolumeUnit(unit)) {
+    const grams = unit === 'kg' ? quantity * 1000 : quantity
+    if (isWeightOrVolumeUnit(line.unit)) {
+      const existingGrams =
+        line.unit === 'kg' ? (line.quantity ?? 0) * 1000 : (line.quantity ?? 0)
+      line.quantity = existingGrams + grams
+      line.unit = 'g'
+      return
+    }
+    if (line.quantity != null && !line.unit) {
+      line.pieceCount = line.pieceCount ?? line.quantity
+      line.quantity = grams
+      line.unit = 'g'
+      return
+    }
+    line.quantity = (line.quantity ?? 0) + grams
+    line.unit = 'g'
+    return
+  }
+
+  // Piece / pack counts (no unit, or slice/can-style units)
+  if (unit && !isWeightOrVolumeUnit(unit)) {
+    if (line.unit === unit) {
+      line.quantity = (line.quantity ?? 0) + quantity
+      return
+    }
+    if (isWeightOrVolumeUnit(line.unit)) {
+      line.pieceCount = (line.pieceCount ?? 0) + quantity
+      return
+    }
+    if (line.quantity != null && !line.unit) {
+      line.unit = unit
+      line.quantity = line.quantity + quantity
+      return
+    }
+    line.quantity = (line.quantity ?? 0) + quantity
+    line.unit = unit
+    return
+  }
+
+  if (isWeightOrVolumeUnit(line.unit)) {
+    line.pieceCount = (line.pieceCount ?? 0) + quantity
+    return
+  }
+
+  line.quantity = (line.quantity ?? 0) + quantity
+  line.unit = undefined
 }
 
 /**
@@ -705,6 +853,9 @@ export function preprocessIngredientText(text: string): string {
 function cleanIngredientName(name: string): string {
   return name
     .replace(/\([^)]*\)/g, ' ')
+    // Drop leftover store notes / unbalanced closing parens: "Costco)", "from Tesco)"
+    .replace(/\b(from\s+)?(costco|tesco|sainsbury'?s|asda|aldi|waitrose|walmart|trader\s*joe'?s)\b\)?/gi, ' ')
+    .replace(/\)+$/g, ' ')
     .replace(USE_PHRASES, ' ')
     .replace(/\bor a can of\b.*/i, ' ')
     .replace(/\bor meatless alternative\b/gi, ' ')
@@ -841,6 +992,13 @@ export function isNonShoppable(name: string): boolean {
   if (!key) return true
   if (ORPHAN_DESCRIPTORS.has(key)) return true
   if (NON_SHOPPABLE_PATTERN.test(key)) return true
+  // Stray store/paren fragments after cleaning
+  if (/^[a-z]+\)+$/i.test(key)) return true
+  if (
+    /^(costco|tesco|sainsbury'?s|asda|aldi|waitrose|walmart)$/i.test(key)
+  ) {
+    return true
+  }
   if (
     /\bwater\b/.test(key) &&
     !/\b(watermelon|watercress|water\s*chestnuts?|coconut\s+water|soda\s+water|tonic\s+water)\b/.test(
@@ -1031,6 +1189,10 @@ export function toShoppingAmount(parsed: ParsedIngredient): ParsedIngredient {
   if (PRESENCE_ONLY_NAMES.has(canonical)) {
     return { name: canonical }
   }
+  // Meat & fish: shop by cut, not recipe grams/pieces
+  if (categoriseIngredient(canonical) === 'meat_fish') {
+    return { name: canonical }
+  }
   if (parsed.unit && isKitchenMeasure(parsed.unit)) {
     return { name: canonical }
   }
@@ -1093,6 +1255,26 @@ export function pluralizeName(name: string, quantity: number): string {
 }
 
 /**
+ * Picks singular/plural for a measurement unit in display labels.
+ *
+ * @param unit - Canonical unit such as slice or can
+ * @param quantity - Amount being bought
+ * @returns Unit inflected for the quantity
+ *
+ * @example
+ * pluralizeUnit('slice', 2) // 'slices'
+ * pluralizeUnit('g', 50) // 'g'
+ */
+export function pluralizeUnit(unit: string, quantity: number): string {
+  if (TIGHT_DISPLAY_UNITS.has(unit) || quantity === 1) return unit
+  if (unit.endsWith('s')) return unit
+  if (unit.endsWith('ch') || unit.endsWith('sh') || unit.endsWith('x')) {
+    return `${unit}es`
+  }
+  return `${unit}s`
+}
+
+/**
  * Builds the visible label for one shopping line.
  * Amounts always render as `{qty}{unit} {name}` so the unit sits tight against the value.
  *
@@ -1104,13 +1286,41 @@ export function pluralizeName(name: string, quantity: number): string {
  * formatShoppingLine({ name: 'carrot', quantity: 2 }) // '2 carrots'
  */
 export function formatShoppingLine(
-  item: Pick<ShoppingListItem, 'name' | 'quantity' | 'unit'>,
+  item: Pick<
+    ShoppingListItem,
+    'name' | 'quantity' | 'unit' | 'pieceCount'
+  >,
 ): string {
   if (item.quantity == null) return item.name
+
+  const amountParts: string[] = []
+
   if (item.unit) {
-    return `${formatQuantity(item.quantity)}${item.unit} ${item.name}`
+    const unitSuffix = TIGHT_DISPLAY_UNITS.has(item.unit)
+      ? item.unit
+      : ` ${pluralizeUnit(item.unit, item.quantity)}`
+    amountParts.push(`${formatQuantity(item.quantity)}${unitSuffix}`)
+  } else {
+    amountParts.push(
+      `${formatQuantity(item.quantity)} ${pluralizeName(item.name, item.quantity)}`,
+    )
   }
-  return `${formatQuantity(item.quantity)} ${pluralizeName(item.name, item.quantity)}`
+
+  if (item.pieceCount != null && item.pieceCount > 0) {
+    amountParts.push(
+      `${formatQuantity(item.pieceCount)} ${pluralizeName(item.name, item.pieceCount)}`,
+    )
+  }
+
+  if (item.pieceCount != null && item.pieceCount > 0) {
+    return amountParts.join(' + ')
+  }
+
+  if (item.unit) {
+    return `${amountParts[0]} ${item.name}`
+  }
+
+  return amountParts[0]
 }
 
 /**
@@ -1173,10 +1383,10 @@ export function buildShoppingList(
       unit = metric.unit
     }
 
-    const key =
-      quantity == null ? `${canonical}::need` : `${canonical}::${unit ?? 'count'}`
-    const existing = lines.get(key)
     const resolvedCategory = category ?? categoriseIngredient(canonical)
+    const key = mergeLineKey(canonical, quantity, unit, resolvedCategory)
+
+    const existing = lines.get(key)
 
     if (!existing) {
       lines.set(key, {
@@ -1191,6 +1401,13 @@ export function buildShoppingList(
     }
 
     existing.recipeCount += 1
+    if (quantity == null) return
+
+    if (MERGE_BY_NAME_CATEGORIES.has(resolvedCategory)) {
+      mergeMeatQuantity(existing, quantity, unit)
+      return
+    }
+
     if (quantity != null) {
       existing.quantity = (existing.quantity ?? 0) + quantity
     }
@@ -1247,12 +1464,17 @@ export function buildShoppingList(
       line.quantity != null
         ? roundShoppingQuantity(line.quantity, line.unit)
         : undefined
+    const pieceCount =
+      line.pieceCount != null
+        ? roundShoppingQuantity(line.pieceCount)
+        : undefined
 
     return {
       id: `${line.name}-${line.unit ?? 'count'}-${index}`,
       name: line.displayName,
       ...(quantity != null ? { quantity } : {}),
       ...(line.unit ? { unit: line.unit } : {}),
+      ...(pieceCount != null ? { pieceCount } : {}),
       category: line.category,
       recipeCount: line.recipeCount,
     }

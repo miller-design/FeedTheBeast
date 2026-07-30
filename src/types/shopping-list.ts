@@ -22,6 +22,8 @@ export type ShoppingListItem = {
    * Omitted for countable items like "4 eggs" where quantity is a count.
    */
   unit?: string
+  /** Piece count when a meat line also has a weight total (e.g. 750g + 4 thighs) */
+  pieceCount?: number
   category: ShoppingCategory
   /** How many plan recipe uses contributed to this line */
   recipeCount: number

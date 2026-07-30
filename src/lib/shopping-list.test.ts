@@ -88,6 +88,9 @@ describe('canonicalShoppingName', () => {
     expect(canonicalShoppingName('oil')).toBe('olive oil')
     expect(canonicalShoppingName('jar of tomato sauce')).toBe('tomato sauce')
     expect(canonicalShoppingName('chicken broth')).toBe('chicken stock')
+    expect(canonicalShoppingName('bone-in chicken thighs')).toBe('chicken thigh')
+    expect(canonicalShoppingName('chicken breasts')).toBe('chicken breast')
+    expect(canonicalShoppingName('chicken')).toBe('chicken breast')
   })
 })
 
@@ -142,6 +145,11 @@ describe('categoriseIngredient', () => {
     expect(categoriseIngredient('carrot')).toBe('produce')
     expect(categoriseIngredient('bay leaf')).toBe('spices')
     expect(categoriseIngredient('garlic bread')).toBe('bakery')
+    expect(categoriseIngredient('gochujang sauce')).toBe('pantry')
+    expect(categoriseIngredient('sesame seeds')).toBe('spices')
+    expect(categoriseIngredient('kimchi')).toBe('pantry')
+    expect(categoriseIngredient('mushrooms')).toBe('produce')
+    expect(categoriseIngredient('buns')).toBe('bakery')
   })
 })
 
@@ -157,6 +165,109 @@ describe('formatShoppingLine', () => {
       '2 carrots',
     )
     expect(formatShoppingLine({ name: 'olive oil' })).toBe('olive oil')
+    expect(
+      formatShoppingLine({ name: 'bacon', quantity: 2, unit: 'slice' }),
+    ).toBe('2 slices bacon')
+  })
+})
+
+describe('buildShoppingList chicken dedup', () => {
+  it('lists meat as presence-only breast/thigh and shelves sauces', () => {
+    const recipe: Recipe = {
+      id: 'r-chicken',
+      name: 'Chicken mix',
+      servings: 2,
+      ingredients: [
+        { id: '1', text: '250g bone-in chicken thighs' },
+        { id: '2', text: '500g chicken thighs' },
+        { id: '3', text: '4 chicken thighs' },
+        { id: '4', text: '113g chicken breasts' },
+        { id: '5', text: '113g chicken' },
+        { id: '6', text: '2 slice bacon' },
+        { id: '7', text: '90g satay sauce' },
+        { id: '8', text: 'gochujang sauce' },
+        { id: '9', text: 'sesame seeds' },
+        { id: '10', text: '2 seeded buns' },
+        { id: '11', text: 'buns (Costco)' },
+        { id: '12', text: '114g shiitake mushrooms' },
+        { id: '13', text: 'kimchi' },
+        { id: '14', text: 'greens' },
+      ],
+      instructions: [],
+      nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      tags: [],
+      createdAt: '',
+      updatedAt: '',
+    }
+
+    const plan: MealPlan = {
+      id: 'p1',
+      slug: 'test',
+      name: 'Test plan',
+      startDate: '2026-01-01',
+      defaultCalorieTarget: 2000,
+      createdAt: '',
+      updatedAt: '',
+      days: [
+        {
+          date: '2026-01-01',
+          calorieTarget: 2000,
+          meals: [
+            {
+              id: 'm1',
+              name: 'Dinner',
+              items: [
+                {
+                  id: 'i1',
+                  name: 'Chicken mix',
+                  calories: 0,
+                  protein: 0,
+                  carbs: 0,
+                  fat: 0,
+                  quantity: 1,
+                  unit: 'serving',
+                  source: 'recipe',
+                  recipeId: 'r-chicken',
+                  recipeServings: 2,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+
+    const groups = buildShoppingList(plan, [recipe])
+    const byCategory = Object.fromEntries(
+      groups.map((g) => [g.category, g.items.map((i) => formatShoppingLine(i))]),
+    )
+    const allLines = groups.flatMap((g) =>
+      g.items.map((i) => formatShoppingLine(i)),
+    )
+    const allNames = groups.flatMap((g) => g.items.map((i) => i.name))
+
+    expect(byCategory.meat_fish).toEqual(
+      expect.arrayContaining(['bacon', 'chicken breast', 'chicken thigh']),
+    )
+    expect(byCategory.meat_fish).toHaveLength(3)
+    expect(allLines.some((line) => /\d/.test(line) && /chicken/.test(line))).toBe(
+      false,
+    )
+
+    expect(byCategory.pantry).toEqual(
+      expect.arrayContaining([
+        'gochujang sauce',
+        'satay sauce',
+        'kimchi',
+      ]),
+    )
+    expect(byCategory.spices).toEqual(expect.arrayContaining(['sesame seeds']))
+    expect(byCategory.bakery).toEqual(expect.arrayContaining(['buns']))
+    expect(byCategory.produce).toEqual(
+      expect.arrayContaining(['greens', '114g mushrooms']),
+    )
+    expect(allNames).not.toContain('costco)')
+    expect(allNames.filter((name) => name === 'buns')).toHaveLength(1)
   })
 })
 

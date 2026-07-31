@@ -139,6 +139,9 @@ const FoodLibrary = ({
   const [mounted, setMounted] = useState(false)
   const [entered, setEntered] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 1280px)')
+  const hasMouseHover = useMediaQuery('(hover: hover) and (pointer: fine)')
+  const hasTouchInput = useMediaQuery('(any-pointer: coarse)')
+  const canShowRecipePreview = hasMouseHover && !hasTouchInput
 
   const filteredRecipes = useMemo(
     () => filterRecipes(recipes, recipeQuery, calorieFilter, tagFilters),
@@ -210,6 +213,10 @@ const FoodLibrary = ({
   useEffect(() => {
     if (tab !== 'recipes') setHoverPreview(null)
   }, [tab])
+
+  useEffect(() => {
+    if (!canShowRecipePreview) setHoverPreview(null)
+  }, [canShowRecipePreview])
 
   /**
    * Positions the floating preview near the cursor, clamped to the viewport.
@@ -519,6 +526,7 @@ const FoodLibrary = ({
                     <DraggableRecipe
                       key={recipe.id}
                       recipe={recipe}
+                      canPreview={canShowRecipePreview}
                       onPreviewMove={showRecipePreview}
                       onPreviewHide={hideRecipePreview}
                       onPlaceRequest={onPlaceRequest}
@@ -634,6 +642,7 @@ function DraggableFood({ product, onPlaceRequest }: DraggableFoodProps) {
 
 type DraggableRecipeProps = {
   recipe: Recipe
+  canPreview: boolean
   /**
    * Shows / repositions the floating image preview while the pointer
    * moves over a recipe that has `imageUrl`.
@@ -659,6 +668,7 @@ type DraggableRecipeProps = {
  * hovering with a mouse shows a cursor-follow preview.
  *
  * @param props.recipe - Library recipe to drag into a meal slot
+ * @param props.canPreview - Whether the current device should show image previews
  * @param props.onPreviewMove - Updates the shared hover preview position/image
  * @param props.onPreviewHide - Clears the shared hover preview
  * @param props.onPlaceRequest - Starts tap-to-place mode for this recipe
@@ -666,6 +676,7 @@ type DraggableRecipeProps = {
  * @example
  * <DraggableRecipe
  *   recipe={recipe}
+ *   canPreview={true}
  *   onPreviewMove={showRecipePreview}
  *   onPreviewHide={hideRecipePreview}
  *   onPlaceRequest={handlePlace}
@@ -673,6 +684,7 @@ type DraggableRecipeProps = {
  */
 function DraggableRecipe({
   recipe,
+  canPreview,
   onPreviewMove,
   onPreviewHide,
   onPlaceRequest,
@@ -702,14 +714,17 @@ function DraggableRecipe({
 
   /**
    * Starts or updates the floating preview for recipes that have an image.
-   * Uses mouse events so previews only appear with a cursor (not touch).
+   * Uses pointer events so synthesized mouse events from touch do not show it.
    * Clears any existing preview when the row has no image (avoids a stale
    * preview when moving from an imaged recipe onto one without).
    *
-   * @param event - Mouse event from the recipe row
+   * @param event - Pointer event from the recipe row
    */
-  function handleMouseMove(event: React.MouseEvent<HTMLLIElement>) {
-    if (isDragging) return
+  function handlePointerMove(event: React.PointerEvent<HTMLLIElement>) {
+    if (isDragging || !canPreview || event.pointerType !== 'mouse') {
+      onPreviewHide()
+      return
+    }
     if (!imageUrl) {
       onPreviewHide()
       return
@@ -723,9 +738,9 @@ function DraggableRecipe({
       className={clsx(styles.item, isDragging && styles.dragging)}
       {...listeners}
       {...attributes}
-      onMouseEnter={handleMouseMove}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={onPreviewHide}
+      onPointerEnter={handlePointerMove}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={onPreviewHide}
     >
       <div className={styles.itemBody}>
         <span className={styles.itemName}>{recipe.name}</span>
